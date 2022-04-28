@@ -1,22 +1,17 @@
 module Url.Codec exposing
     ( Codec
-    , parse, ParseError(..)
-    , succeed
-    , s
-    , int, string
-    , parseOneOf
+    , parse, parseOneOf, ParseError(..)
+    , succeed, s, int, string
     )
 
 {-|
 
 @docs Codec
-@docs parse, ParseError
+@docs parse, parseOneOf, ParseError
 @docs toRelativeUrl, toAbsoluteUrl
-@docs succeed
-@docs s
-@docs int, string
+@docs succeed, s, int, string
 
-TODO note it will return the deepest error (parser that dove the deepest)
+TODO note parser will return the deepest error (parser that dove the deepest)
 
 -}
 
