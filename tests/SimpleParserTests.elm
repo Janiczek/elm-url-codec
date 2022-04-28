@@ -1,9 +1,14 @@
-module Tests exposing (..)
+module SimpleParserTests exposing (suite)
 
 import Expect
 import Fuzz exposing (Fuzzer)
 import Test exposing (Test)
-import Url.Codec exposing (Codec, ParseError(..))
+import Url.SimpleParser exposing (ParseError(..), Parser)
+
+
+
+----------- EXAMPLE START -----------
+-- ROUTE TYPE
 
 
 type Route
@@ -13,42 +18,46 @@ type Route
     | Comment String Int
 
 
-topicCodec : Codec Route
-topicCodec =
-    Url.Codec.succeed Topic
-        |> Url.Codec.s "topic"
-        |> Url.Codec.string
+
+-- PARSERS
 
 
-blogCodec : Codec Route
-blogCodec =
-    Url.Codec.succeed Blog
-        |> Url.Codec.s "blog"
-        |> Url.Codec.int
+topicParser : Parser Route
+topicParser =
+    Url.SimpleParser.succeed Topic
+        |> Url.SimpleParser.s "topic"
+        |> Url.SimpleParser.string
 
 
-userCodec : Codec Route
-userCodec =
-    Url.Codec.succeed User
-        |> Url.Codec.s "user"
-        |> Url.Codec.string
+blogParser : Parser Route
+blogParser =
+    Url.SimpleParser.succeed Blog
+        |> Url.SimpleParser.s "blog"
+        |> Url.SimpleParser.int
 
 
-commentCodec : Codec Route
-commentCodec =
-    Url.Codec.succeed Comment
-        |> Url.Codec.s "topic"
-        |> Url.Codec.string
-        |> Url.Codec.s "comment"
-        |> Url.Codec.int
+userParser : Parser Route
+userParser =
+    Url.SimpleParser.succeed User
+        |> Url.SimpleParser.s "user"
+        |> Url.SimpleParser.string
 
 
-allCodecs : List (Codec Route)
-allCodecs =
-    [ topicCodec
-    , blogCodec
-    , userCodec
-    , commentCodec
+commentParser : Parser Route
+commentParser =
+    Url.SimpleParser.succeed Comment
+        |> Url.SimpleParser.s "topic"
+        |> Url.SimpleParser.string
+        |> Url.SimpleParser.s "comment"
+        |> Url.SimpleParser.int
+
+
+allParsers : List (Parser Route)
+allParsers =
+    [ topicParser
+    , blogParser
+    , userParser
+    , commentParser
     ]
 
 
@@ -57,7 +66,7 @@ runParseCase ( input, expectedOutput ) =
     Test.test ("\"" ++ input ++ "\" -> " ++ Debug.toString expectedOutput) <|
         \() ->
             input
-                |> Url.Codec.parseOneOf allCodecs
+                |> Url.SimpleParser.parseOneOf allParsers
                 |> Expect.equal expectedOutput
 
 
@@ -70,6 +79,7 @@ cases =
     , ( "blog", Err SegmentNotAvailable )
     , ( "blog/hello", Err (WasNotInt "hello") )
     , ( "blog/123", Ok (Blog 123) )
+    , ( "blog/-999", Ok (Blog -999) )
     , ( "user", Err SegmentNotAvailable )
     , ( "user/hello", Ok (User "hello") )
     , ( "user/123", Ok (User "123") )
@@ -166,12 +176,12 @@ routeSegmentFuzzer =
         ]
 
 
-codecFuzzer : Fuzzer (Codec Route)
-codecFuzzer =
-    [ topicCodec
-    , blogCodec
-    , userCodec
-    , commentCodec
+parserFuzzer : Fuzzer (Parser Route)
+parserFuzzer =
+    [ topicParser
+    , blogParser
+    , userParser
+    , commentParser
     ]
         |> List.map Fuzz.constant
         |> Fuzz.oneOf
@@ -189,98 +199,106 @@ appendSlash s =
 
 suite : Test
 suite =
-    Test.describe "Url.Codec"
+    Test.describe "Url.SimpleParser"
         [ Test.describe "parseOneOf"
             [ Test.describe "Hardcoded cases" <|
                 List.map runParseCase cases
             , Test.test "Doesn't care about leading /" <|
                 \() ->
                     let
+                        actual : List (Result ParseError Route)
                         actual =
                             caseInputs
-                                |> List.map (prependSlash >> Url.Codec.parseOneOf allCodecs)
+                                |> List.map (prependSlash >> Url.SimpleParser.parseOneOf allParsers)
 
+                        expected : List (Result ParseError Route)
                         expected =
                             caseInputs
-                                |> List.map (Url.Codec.parseOneOf allCodecs)
+                                |> List.map (Url.SimpleParser.parseOneOf allParsers)
                     in
                     actual
                         |> Expect.equalLists expected
             , Test.test "doesn't care about trailing /" <|
                 \() ->
                     let
+                        actual : List (Result ParseError Route)
                         actual =
                             caseInputs
-                                |> List.map (appendSlash >> Url.Codec.parseOneOf allCodecs)
+                                |> List.map (appendSlash >> Url.SimpleParser.parseOneOf allParsers)
 
+                        expected : List (Result ParseError Route)
                         expected =
                             caseInputs
-                                |> List.map (Url.Codec.parseOneOf allCodecs)
+                                |> List.map (Url.SimpleParser.parseOneOf allParsers)
                     in
                     actual
                         |> Expect.equalLists expected
             , Test.test "order matters - oneOf [a->b,a->c] vs oneOf [a->c,a->b]" <|
                 \() ->
                     let
-                        plus : Codec Int
+                        plus : Parser Int
                         plus =
-                            Url.Codec.succeed (\n -> n + 1)
-                                |> Url.Codec.s "id"
-                                |> Url.Codec.int
+                            Url.SimpleParser.succeed (\n -> n + 1)
+                                |> Url.SimpleParser.s "id"
+                                |> Url.SimpleParser.int
 
-                        times : Codec Int
+                        times : Parser Int
                         times =
-                            Url.Codec.succeed (\n -> n * 500)
-                                |> Url.Codec.s "id"
-                                |> Url.Codec.int
+                            Url.SimpleParser.succeed (\n -> n * 500)
+                                |> Url.SimpleParser.s "id"
+                                |> Url.SimpleParser.int
 
                         path : String
                         path =
                             "id/123"
 
+                        plusFirst : Result ParseError Int
                         plusFirst =
-                            Url.Codec.parseOneOf [ plus, times ] path
+                            Url.SimpleParser.parseOneOf [ plus, times ] path
 
+                        timesFirst : Result ParseError Int
                         timesFirst =
-                            Url.Codec.parseOneOf [ times, plus ] path
+                            Url.SimpleParser.parseOneOf [ times, plus ] path
                     in
                     plusFirst
                         |> Expect.notEqual timesFirst
             , Test.test "order doesn't matter - oneOf [a,a/b] vs oneOf [a/b,a]" <|
                 \() ->
                     let
-                        shallow : Codec ( Int, Maybe Int )
+                        shallow : Parser ( Int, Maybe Int )
                         shallow =
-                            Url.Codec.succeed (\n -> ( n, Nothing ))
-                                |> Url.Codec.int
+                            Url.SimpleParser.succeed (\n -> ( n, Nothing ))
+                                |> Url.SimpleParser.int
 
-                        deep : Codec ( Int, Maybe Int )
+                        deep : Parser ( Int, Maybe Int )
                         deep =
-                            Url.Codec.succeed (\n m -> ( n, Just m ))
-                                |> Url.Codec.int
-                                |> Url.Codec.int
+                            Url.SimpleParser.succeed (\n m -> ( n, Just m ))
+                                |> Url.SimpleParser.int
+                                |> Url.SimpleParser.int
 
                         path : String
                         path =
                             "123/456"
 
+                        shallowFirst : Result ParseError ( Int, Maybe Int )
                         shallowFirst =
-                            Url.Codec.parseOneOf [ shallow, deep ] path
+                            Url.SimpleParser.parseOneOf [ shallow, deep ] path
 
+                        deepFirst : Result ParseError ( Int, Maybe Int )
                         deepFirst =
-                            Url.Codec.parseOneOf [ deep, shallow ] path
+                            Url.SimpleParser.parseOneOf [ deep, shallow ] path
                     in
                     shallowFirst
                         |> Expect.equal deepFirst
             , Test.fuzz pathFuzzer "parseOneOf [] -> error" <|
                 \path ->
-                    Url.Codec.parseOneOf [] path
-                        |> Expect.equal (Err NoCodecs)
+                    Url.SimpleParser.parseOneOf [] path
+                        |> Expect.equal (Err NoParsers)
             ]
         , Test.describe "parse"
-            [ Test.fuzz2 codecFuzzer routePathFuzzer "parse x == parseOneOf [x]" <|
-                \codec path ->
-                    Url.Codec.parse codec path
-                        |> Expect.equal (Url.Codec.parseOneOf [ codec ] path)
+            [ Test.fuzz2 parserFuzzer routePathFuzzer "parse x == parseOneOf [x]" <|
+                \parser path ->
+                    Url.SimpleParser.parse parser path
+                        |> Expect.equal (Url.SimpleParser.parseOneOf [ parser ] path)
             ]
         ]
