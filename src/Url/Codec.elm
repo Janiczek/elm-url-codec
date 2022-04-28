@@ -8,7 +8,9 @@ module Url.Codec exposing
 {-| An alternative to [`Url.Parser`](https://package.elm-lang.org/packages/elm/url/latest/Url-Parser)
 and [`Url.Builder`](https://package.elm-lang.org/packages/elm/url/latest/Url-Builder)
 modules from the [`elm/url`](https://package.elm-lang.org/packages/elm/url/latest/)
-package that allows you to build in both directions at the same time.
+package.
+
+**Allows you to define both the URL parser and the URL builder at the same time.**
 
 Note that if you only need an URL parser, the [`Url.SimpleParser`](Url-SimpleParser)
 module will be nicer to use while providing the same functionality.
