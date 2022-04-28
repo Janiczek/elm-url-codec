@@ -246,10 +246,10 @@ different route, such that the used getters will return Nothing).
     allCodecs =
         [ helloCodec, postCodec ]
 
-    Url.Codec.toString allCodecs (HelloPage 123)
+    Url.Codec.toStringOneOf allCodecs (HelloPage 123)
     --> Just "hello/123"
 
-    Url.Codec.toString allCodecs (PostPage "goto-bad")
+    Url.Codec.toStringOneOf allCodecs (PostPage "goto-bad")
     --> Just "post/goto-bad"
 
 -}
