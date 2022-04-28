@@ -52,8 +52,8 @@ allCodecs =
     ]
 
 
-runCase : ( String, Result ParseError Route ) -> Test
-runCase ( input, expectedOutput ) =
+runParseCase : ( String, Result ParseError Route ) -> Test
+runParseCase ( input, expectedOutput ) =
     Test.test ("\"" ++ input ++ "\" -> " ++ Debug.toString expectedOutput) <|
         \() ->
             input
@@ -122,11 +122,16 @@ nonemptyListFuzzer itemFuzzer =
     Fuzz.map2 (::) itemFuzzer (Fuzz.list itemFuzzer)
 
 
+safeStringFuzzer : Fuzzer String
+safeStringFuzzer =
+    Fuzz.map String.fromList (nonemptyListFuzzer safeCharFuzzer)
+
+
 segmentFuzzer : Fuzzer String
 segmentFuzzer =
     Fuzz.oneOf
         [ Fuzz.map String.fromInt Fuzz.int
-        , Fuzz.map String.fromList (nonemptyListFuzzer safeCharFuzzer)
+        , safeStringFuzzer
         ]
 
 
@@ -144,6 +149,34 @@ pathFuzzer =
         ]
 
 
+routePathFuzzer : Fuzzer String
+routePathFuzzer =
+    Fuzz.map (String.join "/") (Fuzz.list routeSegmentFuzzer)
+
+
+routeSegmentFuzzer : Fuzzer String
+routeSegmentFuzzer =
+    Fuzz.oneOf
+        [ Fuzz.int |> Fuzz.map String.fromInt
+        , safeStringFuzzer
+        , Fuzz.constant "topic"
+        , Fuzz.constant "blog"
+        , Fuzz.constant "user"
+        , Fuzz.constant "comment"
+        ]
+
+
+codecFuzzer : Fuzzer (Codec Route)
+codecFuzzer =
+    [ topicCodec
+    , blogCodec
+    , userCodec
+    , commentCodec
+    ]
+        |> List.map Fuzz.constant
+        |> Fuzz.oneOf
+
+
 prependSlash : String -> String
 prependSlash s =
     "/" ++ s
@@ -159,7 +192,7 @@ suite =
     Test.describe "Url.Codec"
         [ Test.describe "parseOneOf"
             [ Test.describe "Hardcoded cases" <|
-                List.map runCase cases
+                List.map runParseCase cases
             , Test.test "Doesn't care about leading /" <|
                 \() ->
                     let
@@ -243,5 +276,11 @@ suite =
                 \path ->
                     Url.Codec.parseOneOf [] path
                         |> Expect.equal (Err NoCodecs)
+            ]
+        , Test.describe "parse"
+            [ Test.fuzz2 codecFuzzer routePathFuzzer "parse x == parseOneOf [x]" <|
+                \codec path ->
+                    Url.Codec.parse codec path
+                        |> Expect.equal (Url.Codec.parseOneOf [ codec ] path)
             ]
         ]

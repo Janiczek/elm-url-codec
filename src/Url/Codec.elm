@@ -7,15 +7,31 @@ module Url.Codec exposing
 {-|
 
 @docs Codec
-@docs parse, parseOneOf, ParseError
-@docs toRelativeUrl, toAbsoluteUrl
-@docs succeed, s, int, string
 
-TODO note parser will return the deepest error (parser that dove the deepest)
+
+## URL parsing
+
+@docs parse, parseOneOf, ParseError
+
+
+## URL building
+
+@docs toRelativeUrl, toAbsoluteUrl
+
+
+## Combinators
+
+@docs succeed, s, int, string
 
 -}
 
 
+{-| Parsing can fail for various reasons.
+
+  - TODO note the depth thing
+  - TODO note the right bias
+
+-}
 type ParseError
     = SegmentMismatch
         { expected : String
@@ -27,6 +43,8 @@ type ParseError
     | NoCodecs
 
 
+{-| Codec knows how to parse and build an URL.
+-}
 type Codec a
     = Codec
         { parser : Parser a
@@ -37,6 +55,14 @@ type alias Parser a =
     List String -> Result ( ParseError, Int ) ( a, List String, Int )
 
 
+{-| Parse the URL path string using the codec.
+
+  - TODO note it needs to consume everything
+  - TODO example
+  - TODO what's a path
+  - TODO should we require URL instead?
+
+-}
 parse : Codec a -> String -> Result ParseError a
 parse codec path =
     parse_ codec (toSegments path)
@@ -49,6 +75,17 @@ parse_ (Codec { parser }) segments =
         |> Result.andThen checkEmptyLeftovers
 
 
+{-| Parse the URL path string, trying multiple codecs.
+
+  - TODO note it needs to consume everything
+  - TODO note the depth thing for errors
+  - TODO note the right bias for errors
+  - TODO note the left bias for successes
+  - TODO example
+  - TODO what's a path
+  - TODO should we require URL instead?
+
+-}
 parseOneOf : List (Codec a) -> String -> Result ParseError a
 parseOneOf codecs path =
     case codecs of
@@ -132,9 +169,28 @@ checkEmptyLeftovers ( value, leftoverSegments, depth ) =
 
 
 
+-- URL BUILDING
+
+
+toRelativeUrl : Codec a -> a -> String
+toRelativeUrl codec x =
+    Debug.todo "toRelativeUrl"
+
+
+toAbsoluteUrl : Codec a -> a -> String
+toAbsoluteUrl codec x =
+    Debug.todo "toAbsoluteUrl"
+
+
+
 -- COMBINATORS
 
 
+{-| A way to start your Codec definition
+
+  - TODO example
+
+-}
 succeed : a -> Codec a
 succeed thing =
     Codec
@@ -142,6 +198,11 @@ succeed thing =
         }
 
 
+{-| A hardcoded path segment
+
+  - TODO example
+
+-}
 s : String -> Codec a -> Codec a
 s expected (Codec inner) =
     Codec
@@ -170,6 +231,11 @@ s expected (Codec inner) =
         }
 
 
+{-| A string path segment
+
+  - TODO example
+
+-}
 string : Codec (String -> a) -> Codec a
 string (Codec inner) =
     Codec
@@ -188,6 +254,11 @@ string (Codec inner) =
         }
 
 
+{-| An integer path segment
+
+  - TODO example
+
+-}
 int : Codec (Int -> a) -> Codec a
 int (Codec inner) =
     Codec
