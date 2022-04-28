@@ -225,7 +225,7 @@ Can fail (eg. if you use a codec for one route with a string belonging to a
 different route, such that the getters will return Nothing).
 
     Url.Codec.toString helloCodec (HelloPage 123)
-    --> "hello/123"
+    --> Just "hello/123"
 
 -}
 toString : Codec target -> target -> Maybe String
@@ -247,10 +247,10 @@ different route, such that the used getters will return Nothing).
         [ helloCodec, postCodec ]
 
     Url.Codec.toString allCodecs (HelloPage 123)
-    --> "hello/123"
+    --> Just "hello/123"
 
     Url.Codec.toString allCodecs (PostPage "goto-bad")
-    --> "post/goto-bad"
+    --> Just "post/goto-bad"
 
 -}
 toStringOneOf : List (Codec target) -> target -> Maybe String
