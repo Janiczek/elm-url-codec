@@ -1,20 +1,42 @@
 module Url.Codec.Internal exposing
     ( Parser, ParseError(..)
-    , parse, parseOneOf
+    , parse
+    , urlToInput, pathToInput, constructPath
     , succeed, s, string, int
+    , intQuery, stringQuery, intsQuery, stringsQuery
+    , queryFlag, allQueryFlags
+    , fragment
+    , listTraverse
     )
 
 {-|
 
 @docs Parser, ParseError
-@docs parse, parseOneOf
+@docs parse
+@docs urlToInput, pathToInput, constructPath
 @docs succeed, s, string, int
+@docs intQuery, stringQuery, intsQuery, stringsQuery
+@docs queryFlag, allQueryFlags
+@docs fragment
+@docs listTraverse
 
 -}
 
+import Dict exposing (Dict)
+import Set exposing (Set)
+import Url exposing (Url)
+
+
+type alias ParserInput =
+    { segments : List String
+    , queryParameters : Dict String (List String)
+    , queryFlags : Set String
+    , fragment : Maybe String
+    }
+
 
 type alias Parser parseResult =
-    List String -> Result ( ParseError, Int ) ( parseResult, List String, Int )
+    ParserInput -> Result ( ParseError, Int ) ( parseResult, List String, Int )
 
 
 type ParseError
@@ -25,34 +47,35 @@ type ParseError
     | SegmentNotAvailable
     | WasNotInt String
     | DidNotConsumeEverything (List String)
+    | NeededSingleQueryParameterValueGotMultiple
+        { key : String
+        , got : List String
+        }
+    | NotAllQueryParameterValuesWereInts
+        { key : String
+        , got : List String
+        }
     | NoParsers
 
 
-parse : Parser a -> String -> Result ParseError a
-parse parser path =
-    parse_ parser (pathToSegments path)
-        |> Result.mapError Tuple.first
-
-
-parse_ : Parser a -> List String -> Result ( ParseError, Int ) a
-parse_ parser segments =
-    parser segments
+parse_ : Parser a -> ParserInput -> Result ( ParseError, Int ) a
+parse_ parser input =
+    parser input
         |> Result.andThen checkEmptyLeftovers
 
 
-parseOneOf : List (Parser a) -> String -> Result ParseError a
-parseOneOf parsers path =
+{-| Mostly delegates to `parse_` for the actual handling, and deals with the
+depth+error juggling (trying all parsers if necessary, reporting the first
+success or reporting the deepest error).
+-}
+parse : List (Parser a) -> ParserInput -> Result ParseError a
+parse parsers input =
     case parsers of
         [] ->
             Err NoParsers
 
         first :: rest ->
-            let
-                segments : List String
-                segments =
-                    pathToSegments path
-            in
-            case parse_ first segments of
+            case parse_ first input of
                 Ok value ->
                     Ok value
 
@@ -65,7 +88,7 @@ parseOneOf parsers path =
                                     Err lastErr
 
                                 currentParser :: restParsers ->
-                                    case parse_ currentParser segments of
+                                    case parse_ currentParser input of
                                         Ok value ->
                                             Ok value
 
@@ -80,6 +103,104 @@ parseOneOf parsers path =
                                                 restParsers
                     in
                     go ( firstErr, firstDepth ) rest
+
+
+constructPath :
+    { a
+        | path : String
+        , query : Maybe String
+        , fragment : Maybe String
+    }
+    -> String
+constructPath url =
+    url.path
+        ++ (url.query
+                |> Maybe.map (\x -> "?" ++ x)
+                |> Maybe.withDefault ""
+           )
+        ++ (url.fragment
+                |> Maybe.map (\x -> "#" ++ x)
+                |> Maybe.withDefault ""
+           )
+
+
+urlToInput : Url -> ParserInput
+urlToInput url =
+    url
+        |> constructPath
+        |> pathToInput
+
+
+pathToInput : String -> ParserInput
+pathToInput path =
+    let
+        firstSplitBy : String -> String -> String
+        firstSplitBy separator input =
+            case String.split separator input of
+                first :: _ ->
+                    first
+
+                [] ->
+                    -- never happens
+                    input
+
+        path_ =
+            path
+                |> firstSplitBy "?"
+                |> firstSplitBy "#"
+
+        ( flags, params ) =
+            path
+                |> String.split "?"
+                |> List.reverse
+                |> List.head
+                |> Maybe.map (String.split "&")
+                |> Maybe.withDefault []
+                |> List.foldl
+                    (\pair ( accFlags, accParams ) ->
+                        case String.split "=" pair of
+                            -- "x"
+                            [ flag ] ->
+                                ( flag :: accFlags, accParams )
+
+                            -- "x="
+                            -- "x=1"
+                            [ key, value ] ->
+                                ( accFlags, ( key, value ) :: accParams )
+
+                            _ ->
+                                -- [] never happens, "x=y=z" etc. is outside spec
+                                ( accFlags, accParams )
+                    )
+                    ( [], [] )
+    in
+    { segments = pathToSegments path_
+    , queryParameters =
+        params
+            |> List.foldl
+                (\( key, value ) acc ->
+                    Dict.update
+                        key
+                        (\maybeValues ->
+                            case maybeValues of
+                                Nothing ->
+                                    Just [ value ]
+
+                                Just values ->
+                                    Just (value :: values)
+                        )
+                        acc
+                )
+                Dict.empty
+    , queryFlags = Set.fromList flags
+    , fragment =
+        case String.split "#" path of
+            [ beforeFragment, fragment_ ] ->
+                Just fragment_
+
+            _ ->
+                Nothing
+    }
 
 
 pathToSegments : String -> List String
@@ -134,62 +255,217 @@ checkEmptyLeftovers ( value, leftoverSegments, depth ) =
 
 
 succeed : a -> Parser a
-succeed thing segments =
-    Ok ( thing, segments, 0 )
+succeed thing =
+    \{ segments } -> Ok ( thing, segments, 0 )
 
 
 s : String -> Parser a -> Parser a
-s expected innerParser segments =
-    innerParser segments
-        |> Result.andThen
-            (\( thing, segments2, depth ) ->
-                case segments2 of
-                    first :: rest ->
-                        if first == expected then
-                            Ok ( thing, rest, depth + 1 )
+s expected innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( thing, segments2, depth ) ->
+                    case segments2 of
+                        first :: rest ->
+                            if first == expected then
+                                Ok ( thing, rest, depth + 1 )
 
-                        else
+                            else
+                                Err
+                                    ( SegmentMismatch
+                                        { expected = expected
+                                        , available = first
+                                        }
+                                    , depth
+                                    )
+
+                        [] ->
+                            Err ( SegmentNotAvailable, depth )
+                )
+
+
+string : Parser (String -> a) -> Parser a
+string innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( stringToThing, segments2, depth ) ->
+                    case segments2 of
+                        first :: rest ->
+                            Ok ( stringToThing first, rest, depth + 1 )
+
+                        [] ->
+                            Err ( SegmentNotAvailable, depth )
+                )
+
+
+int : Parser (Int -> a) -> Parser a
+int innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( intToThing, segments2, depth ) ->
+                    case segments2 of
+                        first :: rest ->
+                            case String.toInt first of
+                                Nothing ->
+                                    Err ( WasNotInt first, depth )
+
+                                Just int_ ->
+                                    Ok ( intToThing int_, rest, depth + 1 )
+
+                        [] ->
+                            Err ( SegmentNotAvailable, depth )
+                )
+
+
+{-| TODO somewhere mention that this and stringQuery will fail if there is more than one item
+-}
+intQuery : String -> Parser (Maybe Int -> a) -> Parser a
+intQuery key innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( maybeIntToThing, segments2, depth ) ->
+                    case
+                        Dict.get key input.queryParameters
+                            |> Maybe.withDefault []
+                    of
+                        [] ->
+                            Ok ( maybeIntToThing Nothing, segments2, depth + 1 )
+
+                        [ single ] ->
+                            Ok ( maybeIntToThing (String.toInt single), segments2, depth + 1 )
+
+                        many ->
                             Err
-                                ( SegmentMismatch
-                                    { expected = expected
-                                    , available = first
+                                ( NeededSingleQueryParameterValueGotMultiple
+                                    { key = key
+                                    , got = many
+                                    }
+                                , depth
+                                )
+                )
+
+
+stringQuery : String -> Parser (Maybe String -> a) -> Parser a
+stringQuery key innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( maybeStringToThing, segments2, depth ) ->
+                    case
+                        Dict.get key input.queryParameters
+                            |> Maybe.withDefault []
+                    of
+                        [] ->
+                            Ok ( maybeStringToThing Nothing, segments2, depth + 1 )
+
+                        [ single ] ->
+                            Ok ( maybeStringToThing (Just single), segments2, depth + 1 )
+
+                        many ->
+                            Err
+                                ( NeededSingleQueryParameterValueGotMultiple
+                                    { key = key
+                                    , got = many
+                                    }
+                                , depth
+                                )
+                )
+
+
+{-| TODO somewhere note that this will fail if values are found that aren't int-strings
+-}
+intsQuery : String -> Parser (List Int -> a) -> Parser a
+intsQuery key innerParser =
+    \input ->
+        innerParser input
+            |> Result.andThen
+                (\( intsToThing, segments2, depth ) ->
+                    let
+                        strings : List String
+                        strings =
+                            Dict.get key input.queryParameters
+                                |> Maybe.withDefault []
+
+                        ints : Maybe (List Int)
+                        ints =
+                            listTraverse String.toInt strings
+                    in
+                    case ints of
+                        Nothing ->
+                            Err
+                                ( NotAllQueryParameterValuesWereInts
+                                    { key = key
+                                    , got = strings
                                     }
                                 , depth
                                 )
 
-                    [] ->
-                        Err ( SegmentNotAvailable, depth )
-            )
+                        Just ints_ ->
+                            Ok ( intsToThing ints_, segments2, depth + 1 )
+                )
 
 
-string : Parser (String -> a) -> Parser a
-string innerParser segments =
-    innerParser segments
-        |> Result.andThen
-            (\( stringToThing, segments2, depth ) ->
-                case segments2 of
-                    first :: rest ->
-                        Ok ( stringToThing first, rest, depth + 1 )
+stringsQuery : String -> Parser (List String -> a) -> Parser a
+stringsQuery key innerParser =
+    \input ->
+        innerParser input
+            |> Result.map
+                (\( stringsToThing, segments2, depth ) ->
+                    let
+                        strings : List String
+                        strings =
+                            Dict.get key input.queryParameters
+                                |> Maybe.withDefault []
+                    in
+                    ( stringsToThing strings, segments2, depth + 1 )
+                )
 
-                    [] ->
-                        Err ( SegmentNotAvailable, depth )
-            )
+
+queryFlag : String -> Parser (Bool -> a) -> Parser a
+queryFlag flag innerParser =
+    \input ->
+        innerParser input
+            |> Result.map
+                (\( queryFlagToThing, segments2, depth ) ->
+                    ( queryFlagToThing (Set.member flag input.queryFlags)
+                    , segments2
+                    , depth + 1
+                    )
+                )
 
 
-int : Parser (Int -> a) -> Parser a
-int innerParser segments =
-    innerParser segments
-        |> Result.andThen
-            (\( intToThing, segments2, depth ) ->
-                case segments2 of
-                    first :: rest ->
-                        case String.toInt first of
-                            Nothing ->
-                                Err ( WasNotInt first, depth )
+allQueryFlags : Parser (List String -> a) -> Parser a
+allQueryFlags innerParser =
+    \input ->
+        innerParser input
+            |> Result.map
+                (\( queryFlagsToThing, segments2, depth ) ->
+                    ( queryFlagsToThing (Set.toList input.queryFlags)
+                    , segments2
+                    , depth + 1
+                    )
+                )
 
-                            Just int_ ->
-                                Ok ( intToThing int_, rest, depth + 1 )
 
-                    [] ->
-                        Err ( SegmentNotAvailable, depth )
-            )
+fragment : Parser (Maybe String -> a) -> Parser a
+fragment innerParser =
+    \input ->
+        innerParser input
+            |> Result.map
+                (\( fragmentToThing, segments2, depth ) ->
+                    ( fragmentToThing input.fragment
+                    , segments2
+                    , depth + 1
+                    )
+                )
+
+
+listTraverse : (a -> Maybe b) -> List a -> Maybe (List b)
+listTraverse fn list =
+    List.foldl
+        (\x acc -> Maybe.map2 (::) (fn x) acc)
+        (Just [])
+        list

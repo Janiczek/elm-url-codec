@@ -8,6 +8,26 @@ package.
 * **[`Url.SimpleParser`](Url-SimpleParser)** only deals with parsing, but
   has a nicer API than [`elm/url`](https://package.elm-lang.org/packages/elm/url/latest/).
 
+Accepts the [`Url`](https://package.elm-lang.org/packages/elm/url/latest/Url#Url) type and strings like:
+
+```
+post/hello-world/comments/2
+post/hello-world/comments/2/
+/post/hello-world/comments/2
+/post/hello-world/comments/2/
+
+/path?admin=true
+/path?admin=true&fireZeMissiles=1
+/path?highlight=123&highlight=154
+/path?foo&bar
+
+/path#something
+```
+
+TODO back up these claims!
+TODO percent encoding ? / #
+TODO reiterate that leading/trailing slashes generally don't matter
+
 ## Example
 
 ```elm
