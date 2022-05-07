@@ -127,9 +127,11 @@ urlFuzzer =
 appendSlash : String -> String
 appendSlash path =
     let
+        handlePath : String -> String
         handlePath p =
             p ++ "/"
 
+        handleQuery : String -> String
         handleQuery p =
             case String.split "?" p of
                 [ beforeQuery ] ->

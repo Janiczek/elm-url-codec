@@ -4,8 +4,7 @@ import Expect
 import Fuzz exposing (Fuzzer)
 import Test exposing (Test)
 import TestUtils as Utils exposing (CRoute(..))
-import Url
-import Url.Codec exposing (Codec, ParseError(..))
+import Url.Codec
 import Url.SimpleParser
 
 

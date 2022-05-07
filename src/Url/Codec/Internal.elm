@@ -144,7 +144,8 @@ pathToInput path =
                     -- never happens
                     input
 
-        path_ =
+        pathOnly : String
+        pathOnly =
             path
                 |> firstSplitBy "?"
                 |> firstSplitBy "#"
@@ -181,7 +182,7 @@ pathToInput path =
                     )
                     ( [], [] )
     in
-    { segments = pathToSegments path_
+    { segments = pathToSegments pathOnly
     , queryParameters =
         params
             |> List.foldl
@@ -202,7 +203,7 @@ pathToInput path =
     , queryFlags = Set.fromList flags
     , fragment =
         case String.split "#" path of
-            [ beforeFragment, fragment_ ] ->
+            [ _, fragment_ ] ->
                 Just (percentDecode fragment_)
 
             _ ->

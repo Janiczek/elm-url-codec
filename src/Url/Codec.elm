@@ -266,6 +266,7 @@ toStringSingle (C codec) thing =
                             |> List.concatMap
                                 (\( key, values ) ->
                                     let
+                                        pctKey : String
                                         pctKey =
                                             Url.percentEncode key
                                     in

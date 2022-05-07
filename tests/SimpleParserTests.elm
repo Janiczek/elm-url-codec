@@ -1,7 +1,6 @@
 module SimpleParserTests exposing (suite)
 
 import Expect
-import Fuzz exposing (Fuzzer)
 import Test exposing (Test)
 import TestUtils as Utils exposing (PRoute(..))
 import Url.Codec.Internal as Internal
@@ -84,30 +83,6 @@ cases =
 caseInputs : List String
 caseInputs =
     List.map Tuple.first cases
-
-
-pRoutePathFuzzer : Fuzzer String
-pRoutePathFuzzer =
-    Fuzz.map (String.join "/") (Fuzz.list pRouteSegmentFuzzer)
-
-
-pRouteSegmentFuzzer : Fuzzer String
-pRouteSegmentFuzzer =
-    Fuzz.oneOf
-        [ Fuzz.int |> Fuzz.map String.fromInt
-        , Utils.nonemptyStringFuzzer
-        , Fuzz.constant "topic"
-        , Fuzz.constant "blog"
-        , Fuzz.constant "user"
-        , Fuzz.constant "comment"
-        ]
-
-
-parserFuzzer : Fuzzer (Parser PRoute)
-parserFuzzer =
-    Utils.allParsers
-        |> List.map Fuzz.constant
-        |> Fuzz.oneOf
 
 
 suite : Test
