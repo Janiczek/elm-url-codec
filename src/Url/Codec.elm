@@ -265,21 +265,34 @@ toStringSingle (C codec) thing =
                             |> List.reverse
                             |> List.concatMap
                                 (\( key, values ) ->
+                                    let
+                                        pctKey =
+                                            Url.percentEncode key
+                                    in
                                     values
-                                        |> List.map (\value -> key ++ "=" ++ value)
+                                        |> List.map
+                                            (\value ->
+                                                pctKey
+                                                    ++ "="
+                                                    ++ Url.percentEncode value
+                                            )
                                 )
 
                     flags : List String
                     flags =
                         codec.toQueryFlags
                             |> List.concatMap (\fn -> fn thing)
+                            |> List.map Url.percentEncode
 
                     allQueries : List String
                     allQueries =
                         params ++ flags
                 in
                 Internal.constructPath
-                    { path = String.join "/" pathParts
+                    { path =
+                        pathParts
+                            |> List.map Url.percentEncode
+                            |> String.join "/"
                     , query =
                         if List.isEmpty allQueries then
                             Nothing
@@ -289,6 +302,7 @@ toStringSingle (C codec) thing =
                     , fragment =
                         codec.toFragment
                             |> Maybe.andThen (\fn -> fn thing)
+                            |> Maybe.map Url.percentEncode
                     }
             )
 

@@ -161,12 +161,19 @@ pathToInput path =
                         case String.split "=" pair of
                             -- "x"
                             [ flag ] ->
-                                ( flag :: accFlags, accParams )
+                                ( percentDecode flag :: accFlags
+                                , accParams
+                                )
 
                             -- "x="
                             -- "x=1"
                             [ key, value ] ->
-                                ( accFlags, ( key, value ) :: accParams )
+                                ( accFlags
+                                , ( percentDecode key
+                                  , percentDecode value
+                                  )
+                                    :: accParams
+                                )
 
                             _ ->
                                 -- [] never happens, "x=y=z" etc. is outside spec
@@ -196,7 +203,7 @@ pathToInput path =
     , fragment =
         case String.split "#" path of
             [ beforeFragment, fragment_ ] ->
-                Just fragment_
+                Just (percentDecode fragment_)
 
             _ ->
                 Nothing
@@ -209,6 +216,14 @@ pathToSegments path =
         |> String.split "/"
         |> removeLeadingEmpty
         |> removeTrailingEmpty
+        |> List.map percentDecode
+
+
+percentDecode : String -> String
+percentDecode str =
+    str
+        |> Url.percentDecode
+        |> Maybe.withDefault str
 
 
 removeLeadingEmpty : List String -> List String

@@ -33,6 +33,11 @@ toStringCases =
     , ( CComment "def" 42 { fragment = Just "hello" }, "topic/def/comment/42#hello" )
     , ( CComment "123" 999 { fragment = Nothing }, "topic/123/comment/999" )
 
+    -- percent-encoded strings:
+    , ( CTopic "H&M", "topic/H%26M" )
+    , ( CBlog 1 { page = Nothing, tags = [ "H&M" ] }, "blog/1?tags=H%26M" )
+    , ( CComment "def" 42 { fragment = Just "H&M" }, "topic/def/comment/42#H%26M" )
+
     -- TODO edge cases: empty strings etc.
     ]
 
@@ -106,5 +111,4 @@ suite =
                     |> Url.Codec.toString Utils.allCodecs
                     |> Maybe.andThen (Url.Codec.parsePath Utils.allCodecs >> Result.toMaybe)
                     |> Expect.equal (Just route)
-        , Test.todo "percent encoding/decoding when stringifying"
         ]
