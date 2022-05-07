@@ -7,39 +7,21 @@ import Url.Codec.Internal as Internal
 import Url.SimpleParser exposing (Parser)
 
 
-safeCharFuzzer : Fuzzer Char
-safeCharFuzzer =
-    Fuzz.char
-        |> Fuzz.map
-            (\c ->
-                if c == '/' then
-                    'x'
-
-                else
-                    c
-            )
-
-
 nonemptyListFuzzer : Fuzzer a -> Fuzzer (List a)
 nonemptyListFuzzer itemFuzzer =
     Fuzz.map2 (::) itemFuzzer (Fuzz.list itemFuzzer)
 
 
-safeStringFuzzer : Fuzzer String
-safeStringFuzzer =
-    Fuzz.map String.fromList (nonemptyListFuzzer safeCharFuzzer)
-
-
-possiblyEmptySafeStringFuzzer : Fuzzer String
-possiblyEmptySafeStringFuzzer =
-    Fuzz.map String.fromList (Fuzz.list safeCharFuzzer)
+nonemptyStringFuzzer : Fuzzer String
+nonemptyStringFuzzer =
+    Fuzz.map String.fromList (nonemptyListFuzzer Fuzz.char)
 
 
 segmentFuzzer : Fuzzer String
 segmentFuzzer =
     Fuzz.oneOf
         [ Fuzz.map String.fromInt Fuzz.int
-        , safeStringFuzzer
+        , nonemptyStringFuzzer
         ]
 
 
@@ -77,13 +59,13 @@ queryFuzzer =
     let
         flagFuzzer : Fuzzer String
         flagFuzzer =
-            safeStringFuzzer
+            nonemptyStringFuzzer
 
         paramFuzzer : Fuzzer String
         paramFuzzer =
             Fuzz.map2 (\k v -> k ++ "=" ++ v)
-                safeStringFuzzer
-                possiblyEmptySafeStringFuzzer
+                nonemptyStringFuzzer
+                Fuzz.string
     in
     Fuzz.maybe
         (Fuzz.list
@@ -98,7 +80,7 @@ queryFuzzer =
 
 fragmentFuzzer : Fuzzer (Maybe String)
 fragmentFuzzer =
-    Fuzz.maybe safeStringFuzzer
+    Fuzz.maybe nonemptyStringFuzzer
 
 
 oneOfValues : List a -> Fuzzer a

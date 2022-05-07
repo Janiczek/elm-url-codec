@@ -45,36 +45,19 @@ toStringCases =
 cRouteFuzzer : Fuzzer CRoute
 cRouteFuzzer =
     Fuzz.oneOf
-        [ Fuzz.map CTopic safeStringFuzzer
+        [ Fuzz.map CTopic Utils.nonemptyStringFuzzer
         , Fuzz.map3 (\id page tags -> CBlog id { page = page, tags = tags })
             Fuzz.int
             (Fuzz.maybe Fuzz.int)
-            (Fuzz.list safeStringFuzzer)
+            (Fuzz.list Utils.nonemptyStringFuzzer)
         , Fuzz.map2 (\name full -> CUser name { full = full })
-            safeStringFuzzer
+            Utils.nonemptyStringFuzzer
             Fuzz.bool
         , Fuzz.map3 (\post page fragment -> CComment post page { fragment = fragment })
-            safeStringFuzzer
+            Utils.nonemptyStringFuzzer
             Fuzz.int
-            (Fuzz.maybe safeStringFuzzer)
+            (Fuzz.maybe Utils.nonemptyStringFuzzer)
         ]
-
-
-safeCharFuzzer : Fuzzer String
-safeCharFuzzer =
-    Fuzz.char
-        |> Fuzz.map (String.fromChar >> Url.percentEncode)
-
-
-nonemptyListFuzzer : Fuzzer a -> Fuzzer (List a)
-nonemptyListFuzzer itemFuzzer =
-    Fuzz.map2 (::) itemFuzzer (Fuzz.list itemFuzzer)
-
-
-safeStringFuzzer : Fuzzer String
-safeStringFuzzer =
-    nonemptyListFuzzer safeCharFuzzer
-        |> Fuzz.map String.concat
 
 
 runToStringCase : ( CRoute, String ) -> Test

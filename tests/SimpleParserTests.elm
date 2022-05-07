@@ -95,7 +95,7 @@ pRouteSegmentFuzzer : Fuzzer String
 pRouteSegmentFuzzer =
     Fuzz.oneOf
         [ Fuzz.int |> Fuzz.map String.fromInt
-        , Utils.safeStringFuzzer
+        , Utils.nonemptyStringFuzzer
         , Fuzz.constant "topic"
         , Fuzz.constant "blog"
         , Fuzz.constant "user"
