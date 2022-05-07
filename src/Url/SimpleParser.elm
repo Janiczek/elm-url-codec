@@ -1,7 +1,7 @@
 module Url.SimpleParser exposing
     ( Parser, ParseError(..), parsePath, parseUrl
     , succeed, s, int, string
-    , intQuery, stringQuery, intsQuery, stringsQuery
+    , queryInt, queryString, queryInts, queryStrings
     , queryFlag, allQueryFlags
     , fragment
     )
@@ -26,7 +26,7 @@ you should use the [`Url.Codec`](Url-Codec) module instead. The API is very simi
 
 ## Query parameters
 
-@docs intQuery, stringQuery, intsQuery, stringsQuery
+@docs queryInt, queryString, queryInts, queryStrings
 @docs queryFlag, allQueryFlags
 
 
@@ -42,16 +42,15 @@ import Url.Codec.Internal as Internal exposing (Parser)
 
 {-| Parser knows how to parse an URL string into Elm data.
 
-Create it with the combinators [`succeed`](#succeed), [`s`](#s), [`int`](#int)
-and [`string`](#string).
+Create it with the combinators:
 
-Parse query parameters with [] TODO
-TODO fragment
+  - [`succeed`](#succeed), [`s`](#s), [`int`](#int), [`string`](#string)
+  - [`queryInt`](#queryInt), [`queryString`](#queryString), [`queryInts`](#queryInts), [`queryStrings`](#queryStrings),
+  - [`queryFlag`](#queryFlag), [`allQueryFlags`](#allQueryFlags)
 
 Use it to parse URLs with the functions [`parsePath`](#parsePath) and [`parseUrl`](#parseUrl).
 
-Leading and trailing slashes don't matter: don't feel an obligation to sanitize
-your input!
+Leading and trailing slashes don't matter.
 
 -}
 type Parser a
@@ -220,36 +219,50 @@ int (Parser inner) =
     Parser <| Internal.int inner
 
 
-intQuery : String -> Parser (Maybe Int -> a) -> Parser a
-intQuery key (Parser inner) =
-    Parser <| Internal.intQuery key inner
+{-| TODO
+-}
+queryInt : String -> Parser (Maybe Int -> a) -> Parser a
+queryInt key (Parser inner) =
+    Parser <| Internal.queryInt key inner
 
 
-stringQuery : String -> Parser (Maybe String -> a) -> Parser a
-stringQuery key (Parser inner) =
-    Parser <| Internal.stringQuery key inner
+{-| TODO
+-}
+queryString : String -> Parser (Maybe String -> a) -> Parser a
+queryString key (Parser inner) =
+    Parser <| Internal.queryString key inner
 
 
-intsQuery : String -> Parser (List Int -> a) -> Parser a
-intsQuery key (Parser inner) =
-    Parser <| Internal.intsQuery key inner
+{-| TODO
+-}
+queryInts : String -> Parser (List Int -> a) -> Parser a
+queryInts key (Parser inner) =
+    Parser <| Internal.queryInts key inner
 
 
-stringsQuery : String -> Parser (List String -> a) -> Parser a
-stringsQuery key (Parser inner) =
-    Parser <| Internal.stringsQuery key inner
+{-| TODO
+-}
+queryStrings : String -> Parser (List String -> a) -> Parser a
+queryStrings key (Parser inner) =
+    Parser <| Internal.queryStrings key inner
 
 
+{-| TODO
+-}
 queryFlag : String -> Parser (Bool -> a) -> Parser a
 queryFlag flag (Parser inner) =
     Parser <| Internal.queryFlag flag inner
 
 
+{-| TODO
+-}
 allQueryFlags : Parser (List String -> a) -> Parser a
 allQueryFlags (Parser inner) =
     Parser <| Internal.allQueryFlags inner
 
 
+{-| TODO
+-}
 fragment : Parser (Maybe String -> a) -> Parser a
 fragment (Parser inner) =
     Parser <| Internal.fragment inner

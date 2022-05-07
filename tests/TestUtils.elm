@@ -188,8 +188,8 @@ blogParser =
     Url.SimpleParser.succeed (\id page tags -> PBlog id { page = page, tags = tags })
         |> Url.SimpleParser.s "blog"
         |> Url.SimpleParser.int
-        |> Url.SimpleParser.intQuery "page"
-        |> Url.SimpleParser.stringsQuery "tags"
+        |> Url.SimpleParser.queryInt "page"
+        |> Url.SimpleParser.queryStrings "tags"
 
 
 userParser : Parser PRoute
@@ -340,8 +340,8 @@ blogCodec =
     Url.Codec.succeed (\id page tags -> CBlog id { page = page, tags = tags })
         |> Url.Codec.s "blog"
         |> Url.Codec.int getBlogPostId
-        |> Url.Codec.intQuery "page" getBlogPage
-        |> Url.Codec.stringsQuery "tags" getBlogTags
+        |> Url.Codec.queryInt "page" getBlogPage
+        |> Url.Codec.queryStrings "tags" getBlogTags
 
 
 userCodec : Codec CRoute

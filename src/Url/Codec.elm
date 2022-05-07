@@ -3,7 +3,7 @@ module Url.Codec exposing
     , ParseError(..), parsePath, parseUrl
     , toString
     , succeed, s, int, string
-    , intQuery, stringQuery, intsQuery, stringsQuery
+    , queryInt, queryString, queryInts, queryStrings
     , queryFlag, allQueryFlags
     , fragment
     )
@@ -38,7 +38,7 @@ module will be nicer to use while providing the same functionality.
 
 ## Query parameters
 
-@docs intQuery, stringQuery, intsQuery, stringsQuery
+@docs queryInt, queryString, queryInts, queryStrings
 @docs queryFlag, allQueryFlags
 
 
@@ -103,15 +103,17 @@ internalErrorToOurError err =
   - how to parse an URL string into Elm data
   - how to build an URL from Elm data.
 
-Create it with the combinators [`succeed`](#succeed), [`s`](#s), [`int`](#int)
-and [`string`](#string).
+Create it with the combinators:
+
+  - [`succeed`](#succeed), [`s`](#s), [`int`](#int), [`string`](#string)
+  - [`queryInt`](#queryInt), [`queryString`](#queryString), [`queryInts`](#queryInts), [`queryStrings`](#queryStrings),
+  - [`queryFlag`](#queryFlag), [`allQueryFlags`](#allQueryFlags)
 
 Use it to **parse** URLs with the functions [`parsePath`](#parsePath) and [`parseUrl`](#parseUrl).
 
 Use it to **build** URLs with the function [`toString`](#toString).
 
-Leading and trailing slashes don't matter: don't feel an obligation to sanitize
-your input!
+Leading and trailing slashes don't matter.
 
 -}
 type alias Codec target =
@@ -477,14 +479,14 @@ int getter (C inner) =
         }
 
 
-intQuery :
+queryInt :
     String
     -> (target -> Maybe Int)
     -> CodecInProgress target (Maybe Int -> parseResult)
     -> CodecInProgress target parseResult
-intQuery key getter (C inner) =
+queryInt key getter (C inner) =
     C
-        { parser = Internal.intQuery key inner.parser
+        { parser = Internal.queryInt key inner.parser
         , toSegments = inner.toSegments
         , toQueryParams =
             (getter >> Maybe.map (\int_ -> ( key, [ String.fromInt int_ ] )))
@@ -494,14 +496,14 @@ intQuery key getter (C inner) =
         }
 
 
-stringQuery :
+queryString :
     String
     -> (target -> Maybe String)
     -> CodecInProgress target (Maybe String -> parseResult)
     -> CodecInProgress target parseResult
-stringQuery key getter (C inner) =
+queryString key getter (C inner) =
     C
-        { parser = Internal.stringQuery key inner.parser
+        { parser = Internal.queryString key inner.parser
         , toSegments = inner.toSegments
         , toQueryParams =
             (getter >> Maybe.map (\str -> ( key, [ str ] )))
@@ -511,14 +513,14 @@ stringQuery key getter (C inner) =
         }
 
 
-intsQuery :
+queryInts :
     String
     -> (target -> List Int)
     -> CodecInProgress target (List Int -> parseResult)
     -> CodecInProgress target parseResult
-intsQuery key getter (C inner) =
+queryInts key getter (C inner) =
     C
-        { parser = Internal.intsQuery key inner.parser
+        { parser = Internal.queryInts key inner.parser
         , toSegments = inner.toSegments
         , toQueryParams =
             (\item -> Just ( key, List.map String.fromInt (getter item) ))
@@ -528,14 +530,14 @@ intsQuery key getter (C inner) =
         }
 
 
-stringsQuery :
+queryStrings :
     String
     -> (target -> List String)
     -> CodecInProgress target (List String -> parseResult)
     -> CodecInProgress target parseResult
-stringsQuery key getter (C inner) =
+queryStrings key getter (C inner) =
     C
-        { parser = Internal.stringsQuery key inner.parser
+        { parser = Internal.queryStrings key inner.parser
         , toSegments = inner.toSegments
         , toQueryParams =
             (\item -> Just ( key, getter item ))

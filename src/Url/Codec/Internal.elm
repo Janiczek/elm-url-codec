@@ -3,7 +3,7 @@ module Url.Codec.Internal exposing
     , parse
     , urlToInput, pathToInput, constructPath
     , succeed, s, string, int
-    , intQuery, stringQuery, intsQuery, stringsQuery
+    , queryInt, queryString, queryInts, queryStrings
     , queryFlag, allQueryFlags
     , fragment
     , listTraverse
@@ -15,7 +15,7 @@ module Url.Codec.Internal exposing
 @docs parse
 @docs urlToInput, pathToInput, constructPath
 @docs succeed, s, string, int
-@docs intQuery, stringQuery, intsQuery, stringsQuery
+@docs queryInt, queryString, queryInts, queryStrings
 @docs queryFlag, allQueryFlags
 @docs fragment
 @docs listTraverse
@@ -335,10 +335,10 @@ int innerParser =
                 )
 
 
-{-| TODO somewhere mention that this and stringQuery will fail if there is more than one item
+{-| TODO somewhere mention that this will fail if there is more than one item
 -}
-intQuery : String -> Parser (Maybe Int -> a) -> Parser a
-intQuery key innerParser =
+queryInt : String -> Parser (Maybe Int -> a) -> Parser a
+queryInt key innerParser =
     \input ->
         innerParser input
             |> Result.andThen
@@ -364,8 +364,10 @@ intQuery key innerParser =
                 )
 
 
-stringQuery : String -> Parser (Maybe String -> a) -> Parser a
-stringQuery key innerParser =
+{-| TODO somewhere mention that this will fail if there is more than one item
+-}
+queryString : String -> Parser (Maybe String -> a) -> Parser a
+queryString key innerParser =
     \input ->
         innerParser input
             |> Result.andThen
@@ -393,8 +395,8 @@ stringQuery key innerParser =
 
 {-| TODO somewhere note that this will fail if values are found that aren't int-strings
 -}
-intsQuery : String -> Parser (List Int -> a) -> Parser a
-intsQuery key innerParser =
+queryInts : String -> Parser (List Int -> a) -> Parser a
+queryInts key innerParser =
     \input ->
         innerParser input
             |> Result.andThen
@@ -424,8 +426,8 @@ intsQuery key innerParser =
                 )
 
 
-stringsQuery : String -> Parser (List String -> a) -> Parser a
-stringsQuery key innerParser =
+queryStrings : String -> Parser (List String -> a) -> Parser a
+queryStrings key innerParser =
     \input ->
         innerParser input
             |> Result.map
