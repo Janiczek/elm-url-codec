@@ -316,7 +316,7 @@ necessary.
 Will stop at the first success.
 
 Can fail (eg. if you use a codec for one route with a string belonging to a
-different route, such that the used getters will return Nothing).
+different route, such that the used path segment getters will return Nothing).
 
     allCodecs =
         [ helloCodec, postCodec ]
@@ -479,6 +479,8 @@ int getter (C inner) =
         }
 
 
+{-| TODO
+-}
 queryInt :
     String
     -> (target -> Maybe Int)
@@ -496,6 +498,8 @@ queryInt key getter (C inner) =
         }
 
 
+{-| TODO
+-}
 queryString :
     String
     -> (target -> Maybe String)
@@ -513,6 +517,8 @@ queryString key getter (C inner) =
         }
 
 
+{-| TODO
+-}
 queryInts :
     String
     -> (target -> List Int)
@@ -530,6 +536,8 @@ queryInts key getter (C inner) =
         }
 
 
+{-| TODO
+-}
 queryStrings :
     String
     -> (target -> List String)
@@ -547,6 +555,8 @@ queryStrings key getter (C inner) =
         }
 
 
+{-| TODO
+-}
 queryFlag :
     String
     -> (target -> Bool)
@@ -570,6 +580,8 @@ queryFlag flag getter (C inner) =
         }
 
 
+{-| TODO
+-}
 allQueryFlags :
     (target -> List String)
     -> CodecInProgress target (List String -> parseResult)
@@ -584,6 +596,8 @@ allQueryFlags getter (C inner) =
         }
 
 
+{-| TODO
+-}
 fragment :
     (target -> Maybe String)
     -> CodecInProgress target (Maybe String -> parseResult)
