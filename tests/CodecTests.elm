@@ -22,6 +22,7 @@ toStringCases =
     , ( CBlog 1 { page = Nothing, tags = [ "a" ] }, "blog/1?tags=a" )
     , ( CBlog 1 { page = Nothing, tags = [ "a", "b" ] }, "blog/1?tags=a&tags=b" )
     , ( CBlog 1 { page = Just 123, tags = [ "a", "b" ] }, "blog/1?page=123&tags=a&tags=b" )
+    , ( CBlog 1 { page = Nothing, tags = [ "" ] }, "blog/1?tags=" )
     , ( CBlog 42 { page = Nothing, tags = [] }, "blog/42" )
     , ( CBlog 999 { page = Nothing, tags = [] }, "blog/999" )
     , ( CBlog -999 { page = Nothing, tags = [] }, "blog/-999" )
