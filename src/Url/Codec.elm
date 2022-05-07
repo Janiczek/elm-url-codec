@@ -360,7 +360,7 @@ Can also work standalone for URLs without path segments:
     codec =
         Url.Codec.succeed HomeRoute
 
-    Url.Codec.parse [codec] ""
+    Url.Codec.parsePath [codec] ""
     --> Ok HomeRoute
 
     Url.Codec.toString [codec] HomeRoute
@@ -380,12 +380,15 @@ succeed thing =
 
 {-| A hardcoded path segment.
 
+    type Route
+        = HomeRoute
+
     codec : Codec Route
     codec =
         Url.Codec.succeed HomeRoute
             |> Url.Codec.s "home"
 
-    Url.Codec.parse [codec] "home"
+    Url.Codec.parsePath [codec] "home"
     --> Ok HomeRoute
 
     Url.Codec.toString [codec] HomeRoute
@@ -405,6 +408,9 @@ s expected (C inner) =
 
 {-| A string path segment.
 
+    type Route
+        = PostRoute String
+
     codec : Codec Route
     codec =
         Url.Codec.succeed PostRoute
@@ -420,7 +426,7 @@ s expected (C inner) =
             _ ->
                 Nothing
 
-    Url.Codec.parse [codec] "post/hello"
+    Url.Codec.parsePath [codec] "post/hello"
     --> Ok (PostRoute "hello")
 
     Url.Codec.toString [codec] (PostRoute "hiya")
@@ -443,6 +449,9 @@ string getter (C inner) =
 
 {-| An integer path segment.
 
+    type Route
+        = UserRoute Int
+
     codec : Codec Route
     codec =
         Url.Codec.succeed UserRoute
@@ -458,7 +467,7 @@ string getter (C inner) =
             _ ->
                 Nothing
 
-    Url.Codec.parse [codec] "user/123"
+    Url.Codec.parsePath [codec] "user/123"
     --> Ok (UserRoute 123)
 
     Url.Codec.toString [codec] (UserRoute 999)
@@ -479,7 +488,48 @@ int getter (C inner) =
         }
 
 
-{-| TODO
+{-| An integer query parameter.
+
+    type Route
+        = UserRoute (Maybe Int)
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed UserRoute
+            |> Url.Codec.s "user"
+            |> Url.Codec.queryInt "id" getUserRouteId
+
+    getUserRouteId : Route -> Maybe Int
+    getUserRouteId route =
+        case route of
+            UserRoute maybeId ->
+                maybeId
+
+            _ ->
+                Nothing
+
+    Url.Codec.parsePath [codec] "user?id=123"
+    --> Ok (UserRoute (Just 123))
+
+    Url.Codec.parsePath [codec] "user"
+    --> Ok (UserRoute Nothing)
+
+    Url.Codec.toString [codec] (UserRoute (Just 999))
+    --> Just "user?id=999"
+
+    Url.Codec.toString [codec] (UserRoute Nothing)
+    --> Just "user"
+
+Will fail if there are multiple query parameters with the same key:
+
+    Url.Codec.parsePath [codec] "user?id=1&id=2"
+    --> Err (NeededSingleQueryParameterValueGotMultiple { got = ["1","2"], key = "id" })
+
+Will succeed with Nothing if the query parameter contains a non-integer string:
+
+    Url.Codec.parsePath [codec] "user?id=martin"
+    --> Ok (UserRoute Nothing)
+
 -}
 queryInt :
     String
@@ -498,7 +548,37 @@ queryInt key getter (C inner) =
         }
 
 
-{-| TODO
+{-| A string query parameter.
+
+    type Route
+        = UserRoute (Maybe String)
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed UserRoute
+            |> Url.Codec.s "user"
+            |> Url.Codec.queryString "name" getUserRouteName
+
+    getUserRouteName : Route -> Maybe String
+    getUserRouteName route =
+        case route of
+            UserRoute name ->
+                name
+
+            _ ->
+                Nothing
+
+    Url.Codec.parsePath [codec] "user?name=martin"
+    --> Ok (UserRoute (Just "martin"))
+
+    Url.Codec.toString [codec] (UserRoute (Just "john")
+    --> Just "user?name=john"
+
+Will fail if there are multiple query parameters with the same key:
+
+    Url.Codec.parsePath [codec] "user?name=a&name=b"
+    --> Err (NeededSingleQueryParameterValueGotMultiple { got = ["a","b"], key = "name" })
+
 -}
 queryString :
     String
@@ -517,7 +597,38 @@ queryString key getter (C inner) =
         }
 
 
-{-| TODO
+{-| A repeated integer query parameter.
+
+    type Route
+        = UserListingRoute (List Int)
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed UserListingRoute
+            |> Url.Codec.s "users"
+            |> Url.Codec.queryInts "id" getUserListingRouteIds
+
+    getUserListingRouteIds : Route -> List Int
+    getUserListingRouteIds route =
+        case route of
+            UserListingRoute ids ->
+                ids
+
+            _ ->
+                []
+
+    Url.Codec.parsePath [codec] "users?id=1"
+    --> Ok (UserListingRoute [1])
+
+    Url.Codec.parsePath [codec] "users?id=1&id=2&id=3"
+    --> Ok (UserListingRoute [1,2,3])
+
+    Url.Codec.parsePath [codec] "users"
+    --> Ok (UserListingRoute [])
+
+    Url.Codec.parsePath [codec] "users?id="
+    --> Ok (UserListingRoute [1]) TODO TODO TODO TODO finish the error cases and toString
+
 -}
 queryInts :
     String

@@ -24,10 +24,6 @@ post/hello-world/comments/2/
 /path#something
 ```
 
-TODO back up these claims!
-TODO percent encoding ? / #
-TODO reiterate that leading/trailing slashes generally don't matter
-
 ## Example
 
 ```elm
@@ -36,9 +32,14 @@ import Url.Codec exposing (Codec)
 
 type Route
     = Topic String
-    | Blog Int
-    | User String
-    | Comment String Int
+    | Blog Int String
+
+
+topicCodec : Codec Route
+topicCodec =
+    Url.Codec.succeed Topic
+        |> Url.Codec.s "topic"
+        |> Url.Codec.string getTopicSlug
 
 
 --     needed for Url.Codec
@@ -53,19 +54,12 @@ getTopicSlug route =
             Nothing
 
 
-topicCodec : Codec Route
-topicCodec =
-    Url.Codec.succeed Topic
-        |> Url.Codec.s "topic"
-        |> Url.Codec.string getTopicSlug
-
-
-Url.Codec.parse topicCodec "topic/hello-world"
+Url.Codec.parsePath [topicCodec] "topic/hello-world"
 --> Ok (Topic "hello-world")
 
 
-Url.Codec.toString topicCodec (Topic "foo-bar-baz")
+Url.Codec.toString [topicCodec] (Topic "foo-bar-baz")
 --> Just "topic/foo-bar-baz"
 ```
 
-For more examples see the test suite on GitHub.
+For more fleshed-out example see [example/Example.elm](https://github.com/Janiczek/elm-url-codec/blob/b9dc96a3e4788b2392c6aec3126282fe6085c7b7/example/Example.elm)

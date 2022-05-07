@@ -32,6 +32,9 @@ toStringCases =
     , ( CComment "abc" 1 { fragment = Nothing }, "topic/abc/comment/1" )
     , ( CComment "def" 42 { fragment = Just "hello" }, "topic/def/comment/42#hello" )
     , ( CComment "123" 999 { fragment = Nothing }, "topic/123/comment/999" )
+    , ( CSearch [], "search" )
+    , ( CSearch [ 1 ], "search?id=1" )
+    , ( CSearch [ 1, 2 ], "search?id=1&id=2" )
 
     -- percent-encoded strings:
     , ( CTopic "H&M", "topic/H%26M" )

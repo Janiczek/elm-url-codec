@@ -422,7 +422,7 @@ queryInts key innerParser =
                                 )
 
                         Just ints_ ->
-                            Ok ( intsToThing ints_, segments2, depth + 1 )
+                            Ok ( intsToThing (List.reverse ints_), segments2, depth + 1 )
                 )
 
 

@@ -170,10 +170,21 @@ type PRoute
     | PBlog Int { page : Maybe Int, tags : List String }
     | PUser String { full : Bool }
     | PComment String Int { fragment : Maybe String }
+    | PSearch (List Int)
 
 
 
 -- PARSERS
+
+
+allParsers : List (Parser PRoute)
+allParsers =
+    [ topicParser
+    , blogParser
+    , userParser
+    , commentParser
+    , searchParser
+    ]
 
 
 topicParser : Parser PRoute
@@ -210,13 +221,11 @@ commentParser =
         |> Url.SimpleParser.fragment
 
 
-allParsers : List (Parser PRoute)
-allParsers =
-    [ topicParser
-    , blogParser
-    , userParser
-    , commentParser
-    ]
+searchParser : Parser PRoute
+searchParser =
+    Url.SimpleParser.succeed PSearch
+        |> Url.SimpleParser.s "search"
+        |> Url.SimpleParser.queryInts "id"
 
 
 
@@ -228,6 +237,7 @@ type CRoute
     | CBlog Int { page : Maybe Int, tags : List String }
     | CUser String { full : Bool }
     | CComment String Int { fragment : Maybe String }
+    | CSearch (List Int)
 
 
 
@@ -324,8 +334,28 @@ getCommentFragment cRoute =
             Nothing
 
 
+getSearchIds : CRoute -> List Int
+getSearchIds cRoute =
+    case cRoute of
+        CSearch ids ->
+            ids
+
+        _ ->
+            []
+
+
 
 -- CODECS
+
+
+allCodecs : List (Codec CRoute)
+allCodecs =
+    [ topicCodec
+    , blogCodec
+    , userCodec
+    , commentCodec
+    , searchCodec
+    ]
 
 
 topicCodec : Codec CRoute
@@ -362,13 +392,11 @@ commentCodec =
         |> Url.Codec.fragment getCommentFragment
 
 
-allCodecs : List (Codec CRoute)
-allCodecs =
-    [ topicCodec
-    , blogCodec
-    , userCodec
-    , commentCodec
-    ]
+searchCodec : Codec CRoute
+searchCodec =
+    Url.Codec.succeed CSearch
+        |> Url.Codec.s "search"
+        |> Url.Codec.queryInts "id" getSearchIds
 
 
 cErrorToPError : Url.Codec.ParseError -> Url.SimpleParser.ParseError
@@ -410,3 +438,6 @@ cRouteToPRoute cRoute =
 
         CComment s i r ->
             PComment s i r
+
+        CSearch i ->
+            PSearch i
