@@ -4,6 +4,7 @@ import Expect
 import Fuzz exposing (Fuzzer)
 import Test exposing (Test)
 import TestUtils as Utils exposing (PRoute(..))
+import Url.Codec.Internal as Internal
 import Url.SimpleParser exposing (ParseError(..), Parser)
 
 
@@ -207,9 +208,13 @@ suite =
                     Url.SimpleParser.parsePath [] path
                         |> Expect.equal (Err NoParsers)
             ]
-        , Test.todo "parsePath <--> parseUrl"
-        , Test.todo "something about parsePath and queryParameters"
-        , Test.todo "something about parsePath and queryFlags"
-        , Test.todo "something about parsePath and fragment"
-        , Test.todo "percent encoding/decoding when parsing"
+        , Test.fuzz Utils.urlFuzzer "parsePath <--> parseUrl" <|
+            \url ->
+                let
+                    path : String
+                    path =
+                        Internal.constructPath url
+                in
+                Url.SimpleParser.parsePath Utils.allParsers path
+                    |> Expect.equal (Url.SimpleParser.parseUrl Utils.allParsers url)
         ]
