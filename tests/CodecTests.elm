@@ -37,8 +37,6 @@ toStringCases =
     , ( CTopic "H&M", "topic/H%26M" )
     , ( CBlog 1 { page = Nothing, tags = [ "H&M" ] }, "blog/1?tags=H%26M" )
     , ( CComment "def" 42 { fragment = Just "H&M" }, "topic/def/comment/42#H%26M" )
-
-    -- TODO edge cases: empty strings etc.
     ]
 
 

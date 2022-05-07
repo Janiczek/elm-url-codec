@@ -75,8 +75,6 @@ cases =
     , ( "topic/H%26M", Ok (PTopic "H&M") )
     , ( "blog/123?tags=H%26M", Ok (PBlog 123 { page = Nothing, tags = [ "H&M" ] }) )
     , ( "topic/hello/comment/123#H%26M", Ok (PComment "hello" 123 { fragment = Just "H&M" }) )
-
-    -- TODO edge cases: empty strings etc.
     ]
 
 
