@@ -73,4 +73,4 @@ Url.Codec.toString [topicCodec] (Topic "foo-bar-baz")
 --> Just "topic/foo-bar-baz"
 ```
 
-For a more fleshed-out example see [example/Example.elm](https://github.com/Janiczek/elm-url-codec/blob/b9dc96a3e4788b2392c6aec3126282fe6085c7b7/example/Example.elm).
+For a more fleshed-out example see [example/CodecExample.elm](https://github.com/Janiczek/elm-url-codec/blob/e895e7301e0c2f73dc36427698ed5ee905e1a120/example/CodecExample.elm) and [example/SimpleParserExample.elm](https://github.com/Janiczek/elm-url-codec/blob/e895e7301e0c2f73dc36427698ed5ee905e1a120/example/SimpleParserExample.elm).
