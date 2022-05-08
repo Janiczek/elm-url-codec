@@ -8,7 +8,8 @@ package.
 * **[`Url.SimpleParser`](Url-SimpleParser)** only deals with parsing, but
   has a nicer API than [`elm/url`](https://package.elm-lang.org/packages/elm/url/latest/).
 
-Accepts the [`Url`](https://package.elm-lang.org/packages/elm/url/latest/Url#Url) type and strings like:
+Accepts both the [`Url`](https://package.elm-lang.org/packages/elm/url/latest/Url#Url)
+type and strings like:
 
 ```
 post/hello-world/comments/2
@@ -37,7 +38,7 @@ type Route
 
 topicCodec : Codec Route
 topicCodec =
-    Url.Codec.succeed Topic
+    Url.Codec.succeed Topic isTopicRoute
         |> Url.Codec.s "topic"
         |> Url.Codec.string getTopicSlug
 
@@ -53,6 +54,16 @@ getTopicSlug route =
         _ ->
             Nothing
 
+--     needed for Url.Codec
+-- not needed for Url.SimpleParser
+isTopicRoute : Route -> Maybe String
+isTopicRoute route =
+    case route of
+        Topic _ ->
+            True
+
+        _ ->
+            False
 
 Url.Codec.parsePath [topicCodec] "topic/hello-world"
 --> Ok (Topic "hello-world")
@@ -62,4 +73,4 @@ Url.Codec.toString [topicCodec] (Topic "foo-bar-baz")
 --> Just "topic/foo-bar-baz"
 ```
 
-For more fleshed-out example see [example/Example.elm](https://github.com/Janiczek/elm-url-codec/blob/b9dc96a3e4788b2392c6aec3126282fe6085c7b7/example/Example.elm)
+For a more fleshed-out example see [example/Example.elm](https://github.com/Janiczek/elm-url-codec/blob/b9dc96a3e4788b2392c6aec3126282fe6085c7b7/example/Example.elm).

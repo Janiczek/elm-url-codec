@@ -170,7 +170,7 @@ type PRoute
     | PBlog Int { page : Maybe Int, tags : List String }
     | PUser String { full : Bool }
     | PComment String Int { fragment : Maybe String }
-    | PSearch (List Int)
+    | PSearch (Maybe String) (List Int)
     | PFlags (List String)
 
 
@@ -227,6 +227,7 @@ searchParser : Parser PRoute
 searchParser =
     Url.SimpleParser.succeed PSearch
         |> Url.SimpleParser.s "search"
+        |> Url.SimpleParser.queryString "term"
         |> Url.SimpleParser.queryInts "id"
 
 
@@ -246,7 +247,7 @@ type CRoute
     | CBlog Int { page : Maybe Int, tags : List String }
     | CUser String { full : Bool }
     | CComment String Int { fragment : Maybe String }
-    | CSearch (List Int)
+    | CSearch (Maybe String) (List Int)
     | CFlags (List String)
 
 
@@ -344,10 +345,20 @@ getCommentFragment cRoute =
             Nothing
 
 
+getSearchTerm : CRoute -> Maybe String
+getSearchTerm cRoute =
+    case cRoute of
+        CSearch term _ ->
+            term
+
+        _ ->
+            Nothing
+
+
 getSearchIds : CRoute -> List Int
 getSearchIds cRoute =
     case cRoute of
-        CSearch ids ->
+        CSearch _ ids ->
             ids
 
         _ ->
@@ -411,7 +422,7 @@ isCComment cRoute =
 isCSearch : CRoute -> Bool
 isCSearch cRoute =
     case cRoute of
-        CSearch _ ->
+        CSearch _ _ ->
             True
 
         _ ->
@@ -481,6 +492,7 @@ searchCodec : Codec CRoute
 searchCodec =
     Url.Codec.succeed CSearch isCSearch
         |> Url.Codec.s "search"
+        |> Url.Codec.queryString "term" getSearchTerm
         |> Url.Codec.queryInts "id" getSearchIds
 
 
@@ -531,8 +543,8 @@ cRouteToPRoute cRoute =
         CComment s i r ->
             PComment s i r
 
-        CSearch i ->
-            PSearch i
+        CSearch t i ->
+            PSearch t i
 
         CFlags f ->
             PFlags f

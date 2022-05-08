@@ -63,9 +63,12 @@ cases =
     , ( "topic/hello/comment/123", Ok (PComment "hello" 123 { fragment = Nothing }) )
     , ( "topic/hello/comment/123#ohai", Ok (PComment "hello" 123 { fragment = Just "ohai" }) )
     , ( "topic/hello/comment/123#", Ok (PComment "hello" 123 { fragment = Just "" }) )
-    , ( "search", Ok (PSearch []) )
-    , ( "search?id=1", Ok (PSearch [ 1 ]) )
-    , ( "search?id=1&id=2", Ok (PSearch [ 1, 2 ]) )
+    , ( "search", Ok (PSearch Nothing []) )
+    , ( "search?id=1", Ok (PSearch Nothing [ 1 ]) )
+    , ( "search?id=1&id=2", Ok (PSearch Nothing [ 1, 2 ]) )
+    , ( "search?term=abc", Ok (PSearch (Just "abc") []) )
+    , ( "search?term=abc&id=1", Ok (PSearch (Just "abc") [ 1 ]) )
+    , ( "search?term=abc&id=1&id=2", Ok (PSearch (Just "abc") [ 1, 2 ]) )
     , ( "search?id=1&id=hello"
       , Err
             (NotAllQueryParameterValuesWereInts

@@ -9,6 +9,8 @@ type Route
     | Blog Int { page : Maybe Int, tags : List String }
     | User String { full : Bool }
     | Comment String Int { fragment : Maybe String }
+    | Search (Maybe String) (List Int)
+    | Flags (List String)
 
 
 
@@ -35,19 +37,21 @@ allCodecs =
     , blogCodec
     , userCodec
     , commentCodec
+    , searchCodec
+    , flagsCodec
     ]
 
 
 topicCodec : Codec Route
 topicCodec =
-    Url.Codec.succeed Topic
+    Url.Codec.succeed Topic isTopicRoute
         |> Url.Codec.s "topic"
         |> Url.Codec.string getTopicSlug
 
 
 blogCodec : Codec Route
 blogCodec =
-    Url.Codec.succeed (\id page tags -> Blog id { page = page, tags = tags })
+    Url.Codec.succeed (\id page tags -> Blog id { page = page, tags = tags }) isBlogRoute
         |> Url.Codec.s "blog"
         |> Url.Codec.int getBlogPostId
         |> Url.Codec.queryInt "page" getBlogPage
@@ -56,7 +60,7 @@ blogCodec =
 
 userCodec : Codec Route
 userCodec =
-    Url.Codec.succeed (\name full -> User name { full = full })
+    Url.Codec.succeed (\name full -> User name { full = full }) isUserRoute
         |> Url.Codec.s "user"
         |> Url.Codec.string getUserName
         |> Url.Codec.queryFlag "full" getUserQueryFlag
@@ -64,12 +68,91 @@ userCodec =
 
 commentCodec : Codec Route
 commentCodec =
-    Url.Codec.succeed (\topic page fragment -> Comment topic page { fragment = fragment })
+    Url.Codec.succeed (\topic page fragment -> Comment topic page { fragment = fragment }) isCommentRoute
         |> Url.Codec.s "topic"
         |> Url.Codec.string getCommentTopicSlug
         |> Url.Codec.s "comment"
         |> Url.Codec.int getCommentIndex
         |> Url.Codec.fragment getCommentFragment
+
+
+searchCodec : Codec Route
+searchCodec =
+    Url.Codec.succeed Search isSearchRoute
+        |> Url.Codec.s "search"
+        |> Url.Codec.queryString "term" getSearchTerm
+        |> Url.Codec.queryInts "id" getSearchIds
+
+
+flagsCodec : Codec Route
+flagsCodec =
+    Url.Codec.succeed Flags isFlagsRoute
+        |> Url.Codec.s "flags"
+        |> Url.Codec.allQueryFlags getFlags
+
+
+
+-- PREDICATES
+
+
+isTopicRoute : Route -> Bool
+isTopicRoute route =
+    case route of
+        Topic _ ->
+            True
+
+        _ ->
+            False
+
+
+isBlogRoute : Route -> Bool
+isBlogRoute route =
+    case route of
+        Blog _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isUserRoute : Route -> Bool
+isUserRoute route =
+    case route of
+        User _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isCommentRoute : Route -> Bool
+isCommentRoute route =
+    case route of
+        Comment _ _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isSearchRoute : Route -> Bool
+isSearchRoute route =
+    case route of
+        Search _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isFlagsRoute : Route -> Bool
+isFlagsRoute route =
+    case route of
+        Flags _ ->
+            True
+
+        _ ->
+            False
 
 
 
@@ -164,3 +247,33 @@ getCommentFragment route =
 
         _ ->
             Nothing
+
+
+getSearchTerm : Route -> Maybe String
+getSearchTerm route =
+    case route of
+        Search term _ ->
+            term
+
+        _ ->
+            Nothing
+
+
+getSearchIds : Route -> List Int
+getSearchIds route =
+    case route of
+        Search _ ids ->
+            ids
+
+        _ ->
+            []
+
+
+getFlags : Route -> List String
+getFlags route =
+    case route of
+        Flags flags ->
+            flags
+
+        _ ->
+            []

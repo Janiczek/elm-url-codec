@@ -34,9 +34,12 @@ toStringCases =
     , ( CComment "def" 42 { fragment = Just "hello" }, "topic/def/comment/42#hello" )
     , ( CComment "123" 999 { fragment = Nothing }, "topic/123/comment/999" )
     , ( CComment "123" 999 { fragment = Just "" }, "topic/123/comment/999#" )
-    , ( CSearch [], "search" )
-    , ( CSearch [ 1 ], "search?id=1" )
-    , ( CSearch [ 1, 2 ], "search?id=1&id=2" )
+    , ( CSearch Nothing [], "search" )
+    , ( CSearch Nothing [ 1 ], "search?id=1" )
+    , ( CSearch Nothing [ 1, 2 ], "search?id=1&id=2" )
+    , ( CSearch (Just "abc") [], "search?term=abc" )
+    , ( CSearch (Just "abc") [ 1 ], "search?term=abc&id=1" )
+    , ( CSearch (Just "abc") [ 1, 2 ], "search?term=abc&id=1&id=2" )
     , ( CFlags [], "flags" )
     , ( CFlags [ "x" ], "flags?x" )
     , ( CFlags [ "x", "y" ], "flags?x&y" )
@@ -63,7 +66,9 @@ cRouteFuzzer =
             Utils.nonemptyStringFuzzer
             Fuzz.int
             (Fuzz.maybe Utils.nonemptyStringFuzzer)
-        , Fuzz.map CSearch (Fuzz.list Fuzz.int)
+        , Fuzz.map2 CSearch
+            (Fuzz.maybe Utils.nonemptyStringFuzzer)
+            (Fuzz.list Fuzz.int)
         , Fuzz.map CFlags
             (Fuzz.list Utils.nonemptyStringFuzzer
                 |> Fuzz.map (Set.fromList >> Set.toList)
