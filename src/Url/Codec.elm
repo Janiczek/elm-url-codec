@@ -53,52 +53,6 @@ import Url exposing (Url)
 import Url.Codec.Internal as Internal
 
 
-{-| All the ways the parsing can fail.
--}
-type ParseError
-    = SegmentMismatch
-        { expected : String
-        , available : String
-        }
-    | SegmentNotAvailable
-    | WasNotInt String
-    | DidNotConsumeEverything (List String)
-    | NeededSingleQueryParameterValueGotMultiple
-        { key : String
-        , got : List String
-        }
-    | NotAllQueryParameterValuesWereInts
-        { key : String
-        , got : List String
-        }
-    | NoCodecs
-
-
-internalErrorToOurError : Internal.ParseError -> ParseError
-internalErrorToOurError err =
-    case err of
-        Internal.SegmentMismatch r ->
-            SegmentMismatch r
-
-        Internal.SegmentNotAvailable ->
-            SegmentNotAvailable
-
-        Internal.WasNotInt str ->
-            WasNotInt str
-
-        Internal.DidNotConsumeEverything list ->
-            DidNotConsumeEverything list
-
-        Internal.NeededSingleQueryParameterValueGotMultiple r ->
-            NeededSingleQueryParameterValueGotMultiple r
-
-        Internal.NotAllQueryParameterValuesWereInts r ->
-            NotAllQueryParameterValuesWereInts r
-
-        Internal.NoParsers ->
-            NoCodecs
-
-
 {-| Codec knows both:
 
   - how to parse an URL string into Elm data
@@ -203,6 +157,52 @@ type CodecInProgress target parseResult
         , toFragment : Maybe (target -> Maybe String)
         , isThing : target -> Bool
         }
+
+
+{-| All the ways the parsing can fail.
+-}
+type ParseError
+    = SegmentMismatch
+        { expected : String
+        , available : String
+        }
+    | SegmentNotAvailable
+    | WasNotInt String
+    | DidNotConsumeEverything (List String)
+    | NeededSingleQueryParameterValueGotMultiple
+        { key : String
+        , got : List String
+        }
+    | NotAllQueryParameterValuesWereInts
+        { key : String
+        , got : List String
+        }
+    | NoCodecs
+
+
+internalErrorToOurError : Internal.ParseError -> ParseError
+internalErrorToOurError err =
+    case err of
+        Internal.SegmentMismatch r ->
+            SegmentMismatch r
+
+        Internal.SegmentNotAvailable ->
+            SegmentNotAvailable
+
+        Internal.WasNotInt str ->
+            WasNotInt str
+
+        Internal.DidNotConsumeEverything list ->
+            DidNotConsumeEverything list
+
+        Internal.NeededSingleQueryParameterValueGotMultiple r ->
+            NeededSingleQueryParameterValueGotMultiple r
+
+        Internal.NotAllQueryParameterValuesWereInts r ->
+            NotAllQueryParameterValuesWereInts r
+
+        Internal.NoParsers ->
+            NoCodecs
 
 
 getParser : Codec a -> Internal.Parser a
@@ -364,7 +364,7 @@ toString codecs thing =
 
     unfinishedCodec : CodecInProgress Route (String -> Route)
     unfinishedCodec =
-        -- needs a string provided via Url.Codec.string
+        -- needs a string provided via a combinator like `Url.Codec.string`
         Url.Codec.succeed UserRoute isUserRoute
 
     isUserRoute : Route -> Bool
@@ -475,6 +475,9 @@ s expected (C inner) =
     Url.Codec.parsePath [codec] "post/hello"
     --> Ok (PostRoute "hello")
 
+    Url.Codec.parsePath [codec] "post"
+    --> Err SegmentNotAvailable
+
     Url.Codec.toString [codec] (PostRoute "hiya")
     --> Just "post/hiya"
 
@@ -526,6 +529,9 @@ string getter (C inner) =
 
     Url.Codec.parsePath [codec] "user/123"
     --> Ok (UserRoute 123)
+
+    Url.Codec.parsePath [codec] "user"
+    --> Err SegmentNotAvailable
 
     Url.Codec.toString [codec] (UserRoute 999)
     --> Just "user/999"

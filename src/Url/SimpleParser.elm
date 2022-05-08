@@ -152,7 +152,16 @@ parseUrl codecs url =
         |> Result.mapError internalErrorToOurError
 
 
+
+-- COMBINATORS
+
+
 {-| A way to start your Parser definition.
+
+    unfinishedParser : Parser (String -> Route)
+    unfinishedParser =
+        -- needs a string provided via a combinator like `Url.SimpleParser.string`
+        Url.SimpleParser.succeed UserRoute
 
 Can also work standalone for URLs without path segments:
 
@@ -160,7 +169,7 @@ Can also work standalone for URLs without path segments:
     parser =
         Url.SimpleParser.succeed HomeRoute
 
-    Url.SimpleParser.parse [parser] ""
+    Url.SimpleParser.parsePath [parser] ""
     --> Ok HomeRoute
 
 -}
@@ -176,7 +185,7 @@ succeed thing =
         Url.SimpleParser.succeed HomeRoute
             |> Url.SimpleParser.s "home"
 
-    Url.SimpleParser.parse [parser] "home"
+    Url.SimpleParser.parsePath [parser] "home"
     --> Ok HomeRoute
 
 -}
@@ -187,14 +196,21 @@ s segment (Parser inner) =
 
 {-| A string path segment.
 
+    type Route
+        = PostRoute String
+        | ...
+
     parser : Parser Route
     parser =
         Url.SimpleParser.succeed PostRoute
             |> Url.SimpleParser.s "post"
             |> Url.SimpleParser.string
 
-    Url.SimpleParser.parse [parser] "post/hello"
+    Url.SimpleParser.parsePath [parser] "post/hello"
     --> Ok (PostRoute "hello")
+
+    Url.SimpleParser.parsePath [parser] "post"
+    --> Err SegmentNotAvailable
 
 -}
 string : Parser (String -> a) -> Parser a
@@ -204,14 +220,21 @@ string (Parser inner) =
 
 {-| An integer path segment.
 
+    type Route
+        = UserRoute Int
+        | ...
+
     parser : Parser Route
     parser =
         Url.SimpleParser.succeed UserRoute
             |> Url.SimpleParser.s "user"
             |> Url.SimpleParser.int
 
-    Url.SimpleParser.parse [parser] "user/123"
+    Url.SimpleParser.parsePath [parser] "user/123"
     --> Ok (UserRoute 123)
+
+    Url.SimpleParser.parsePath [parser] "user"
+    --> Err SegmentNotAvailable
 
 -}
 int : Parser (Int -> a) -> Parser a
@@ -219,49 +242,207 @@ int (Parser inner) =
     Parser <| Internal.int inner
 
 
-{-| TODO
+{-| An integer query parameter.
+
+    type Route
+        = UserRoute (Maybe Int)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed UserRoute
+            |> Url.SimpleParser.s "user"
+            |> Url.SimpleParser.queryInt "id"
+
+    Url.SimpleParser.parsePath [parser] "user?id=123"
+    --> Ok (UserRoute (Just 123))
+
+    Url.SimpleParser.parsePath [parser] "user"
+    --> Ok (UserRoute Nothing)
+
+Will fail if there are multiple query parameters with the same key:
+
+    Url.SimpleParser.parsePath [parser] "user?id=1&id=2"
+    --> Err (NeededSingleQueryParameterValueGotMultiple { got = ["1","2"], key = "id" })
+
+Will succeed with Nothing if the query parameter contains a non-integer string:
+
+    Url.SimpleParser.parsePath [parser] "user?id=martin"
+    --> Ok (UserRoute Nothing)
+
 -}
 queryInt : String -> Parser (Maybe Int -> a) -> Parser a
 queryInt key (Parser inner) =
     Parser <| Internal.queryInt key inner
 
 
-{-| TODO
+{-| A string query parameter.
+
+    type Route
+        = UserRoute (Maybe String)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed UserRoute
+            |> Url.SimpleParser.s "user"
+            |> Url.SimpleParser.queryString "name"
+
+    Url.SimpleParser.parsePath [parser] "user?name=martin"
+    --> Ok (UserRoute (Just "martin"))
+
+Will fail if there are multiple query parameters with the same key:
+
+    Url.SimpleParser.parsePath [parser] "user?name=a&name=b"
+    --> Err (NeededSingleQueryParameterValueGotMultiple { got = ["a","b"], key = "name" })
+
 -}
 queryString : String -> Parser (Maybe String -> a) -> Parser a
 queryString key (Parser inner) =
     Parser <| Internal.queryString key inner
 
 
-{-| TODO
+{-| A repeated integer query parameter.
+
+    type Route
+        = UserListingRoute (List Int)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed UserListingRoute
+            |> Url.SimpleParser.s "users"
+            |> Url.SimpleParser.queryInts "id"
+
+    Url.SimpleParser.parsePath [parser] "users?id=1"
+    --> Ok (UserListingRoute [1])
+
+    Url.SimpleParser.parsePath [parser] "users?id=1&id=2&id=3"
+    --> Ok (UserListingRoute [1,2,3])
+
+    Url.SimpleParser.parsePath [parser] "users"
+    --> Ok (UserListingRoute [])
+
+Will fail if given a query parameter with an empty value:
+
+    Url.SimpleParser.parsePath [parser] "users?id="
+    --> Err (NotAllQueryParameterValuesWereInts { got = [ "" ] , key = "id" })
+
+Will fail if any of the query parameters has a non-integer value:
+
+    Url.SimpleParser.parsePath [parser] "users?id=1&id=hello"
+    --> Err (NotAllQueryParameterValuesWereInts { got = [ "1", "hello" ] , key = "id" })
+
 -}
 queryInts : String -> Parser (List Int -> a) -> Parser a
 queryInts key (Parser inner) =
     Parser <| Internal.queryInts key inner
 
 
-{-| TODO
+{-| A repeated string query parameter.
+
+    type Route
+        = UserListingRoute (List String)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed UserListingRoute
+            |> Url.SimpleParser.s "users"
+            |> Url.SimpleParser.queryInts "tags"
+
+    Url.SimpleParser.parsePath [parser] "users?tags=Foo"
+    --> Ok (UserListingRoute ["Foo"])
+
+    Url.SimpleParser.parsePath [parser] "users?tags=Foo&tags=Bar&tags=999"
+    --> Ok (UserListingRoute ["Foo", "Bar", "999"])
+
+    Url.SimpleParser.parsePath [parser] "users"
+    --> Ok (UserListingRoute [])
+
+Will succeed with an empty string if given a query parameter with an empty value:
+
+    Url.SimpleParser.parsePath [parser] "users?tags="
+    --> Ok (UserListingRoute [""])
+
 -}
 queryStrings : String -> Parser (List String -> a) -> Parser a
 queryStrings key (Parser inner) =
     Parser <| Internal.queryStrings key inner
 
 
-{-| TODO
+{-| A query flag (parameter without `=` and a value), like eg. `/settings?admin`.
+
+    type Route
+        = SettingsRoute { admin : Bool }
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed (\admin -> SettingsRoute { admin = admin })
+            |> Url.SimpleParser.s "settings"
+            |> Url.SimpleParser.queryFlag "admin"
+
+    Url.SimpleParser.parsePath [parser] "settings?admin"
+    --> Ok (SettingsRoute { admin = True })
+
+    Url.SimpleParser.parsePath [parser] "settings"
+    --> Ok (SettingsRoute { admin = False })
+
 -}
 queryFlag : String -> Parser (Bool -> a) -> Parser a
 queryFlag flag (Parser inner) =
     Parser <| Internal.queryFlag flag inner
 
 
-{-| TODO
+{-| All query flags, like eg. `/settings?admin&no-exports`.
+
+    type Route
+        = SettingsRoute (List String)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed SettingsRoute
+            |> Url.SimpleParser.s "settings"
+            |> Url.SimpleParser.allQueryFlags
+
+    Url.SimpleParser.parsePath [parser] "settings?admin"
+    --> Ok (SettingsRoute ["admin"])
+
+    Url.SimpleParser.parsePath [parser] "settings"
+    --> Ok (SettingsRoute [])
+
+    Url.SimpleParser.parsePath [parser] "settings?admin&no-exports"
+    --> Ok (SettingsRoute ["admin", "no-exports"])
+
 -}
 allQueryFlags : Parser (List String -> a) -> Parser a
 allQueryFlags (Parser inner) =
     Parser <| Internal.allQueryFlags inner
 
 
-{-| TODO
+{-| Fragment part of the URL, eg. `/settings#HelloThereWorld`.
+
+    type Route
+        = SettingsRoute (Maybe String)
+        | ...
+
+    parser : Parser Route
+    parser =
+        Url.SimpleParser.succeed SettingsRoute
+            |> Url.SimpleParser.s "settings"
+            |> Url.SimpleParser.fragment
+
+    Url.SimpleParser.parsePath [parser] "settings#abc"
+    --> Ok (SettingsRoute (Just "abc"))
+
+    Url.SimpleParser.parsePath [parser] "settings"
+    --> Ok (SettingsRoute Nothing)
+
+    Url.SimpleParser.parsePath [parser] "settings#"
+    --> Ok (SettingsRoute (Just ""))
+
 -}
 fragment : Parser (Maybe String -> a) -> Parser a
 fragment (Parser inner) =
