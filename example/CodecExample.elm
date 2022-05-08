@@ -1,7 +1,7 @@
-module Example exposing (Route(..), fromUrl, toString)
+module CodecExample exposing (Route(..), fromUrl, toString)
 
 import Url exposing (Url)
-import Url.Codec exposing (Codec)
+import Parser exposing (Codec)
 
 
 type Route
@@ -17,14 +17,14 @@ type Route
 -- TOP LEVEL FUNCTIONS
 
 
-fromUrl : Url -> Result Url.Codec.ParseError Route
+fromUrl : Url -> Result Parser.ParseError Route
 fromUrl url =
-    Url.Codec.parseUrl allCodecs url
+    Parser.parseUrl allCodecs url
 
 
 toString : Route -> Maybe String
 toString route =
-    Url.Codec.toString allCodecs route
+    Parser.toString allCodecs route
 
 
 
@@ -44,51 +44,51 @@ allCodecs =
 
 topicCodec : Codec Route
 topicCodec =
-    Url.Codec.succeed Topic isTopicRoute
-        |> Url.Codec.s "topic"
-        |> Url.Codec.string getTopicSlug
+    Parser.succeed Topic isTopicRoute
+        |> Parser.s "topic"
+        |> Parser.string getTopicSlug
 
 
 blogCodec : Codec Route
 blogCodec =
-    Url.Codec.succeed (\id page tags -> Blog id { page = page, tags = tags }) isBlogRoute
-        |> Url.Codec.s "blog"
-        |> Url.Codec.int getBlogPostId
-        |> Url.Codec.queryInt "page" getBlogPage
-        |> Url.Codec.queryStrings "tags" getBlogTags
+    Parser.succeed (\id page tags -> Blog id { page = page, tags = tags }) isBlogRoute
+        |> Parser.s "blog"
+        |> Parser.int getBlogPostId
+        |> Parser.queryInt "page" getBlogPage
+        |> Parser.queryStrings "tags" getBlogTags
 
 
 userCodec : Codec Route
 userCodec =
-    Url.Codec.succeed (\name full -> User name { full = full }) isUserRoute
-        |> Url.Codec.s "user"
-        |> Url.Codec.string getUserName
-        |> Url.Codec.queryFlag "full" getUserQueryFlag
+    Parser.succeed (\name full -> User name { full = full }) isUserRoute
+        |> Parser.s "user"
+        |> Parser.string getUserName
+        |> Parser.queryFlag "full" getUserQueryFlag
 
 
 commentCodec : Codec Route
 commentCodec =
-    Url.Codec.succeed (\topic page fragment -> Comment topic page { fragment = fragment }) isCommentRoute
-        |> Url.Codec.s "topic"
-        |> Url.Codec.string getCommentTopicSlug
-        |> Url.Codec.s "comment"
-        |> Url.Codec.int getCommentIndex
-        |> Url.Codec.fragment getCommentFragment
+    Parser.succeed (\topic page fragment -> Comment topic page { fragment = fragment }) isCommentRoute
+        |> Parser.s "topic"
+        |> Parser.string getCommentTopicSlug
+        |> Parser.s "comment"
+        |> Parser.int getCommentIndex
+        |> Parser.fragment getCommentFragment
 
 
 searchCodec : Codec Route
 searchCodec =
-    Url.Codec.succeed Search isSearchRoute
-        |> Url.Codec.s "search"
-        |> Url.Codec.queryString "term" getSearchTerm
-        |> Url.Codec.queryInts "id" getSearchIds
+    Parser.succeed Search isSearchRoute
+        |> Parser.s "search"
+        |> Parser.queryString "term" getSearchTerm
+        |> Parser.queryInts "id" getSearchIds
 
 
 flagsCodec : Codec Route
 flagsCodec =
-    Url.Codec.succeed Flags isFlagsRoute
-        |> Url.Codec.s "flags"
-        |> Url.Codec.allQueryFlags getFlags
+    Parser.succeed Flags isFlagsRoute
+        |> Parser.s "flags"
+        |> Parser.allQueryFlags getFlags
 
 
 
