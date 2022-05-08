@@ -171,6 +171,7 @@ type PRoute
     | PUser String { full : Bool }
     | PComment String Int { fragment : Maybe String }
     | PSearch (List Int)
+    | PFlags (List String)
 
 
 
@@ -184,6 +185,7 @@ allParsers =
     , userParser
     , commentParser
     , searchParser
+    , flagsParser
     ]
 
 
@@ -228,6 +230,13 @@ searchParser =
         |> Url.SimpleParser.queryInts "id"
 
 
+flagsParser : Parser PRoute
+flagsParser =
+    Url.SimpleParser.succeed PFlags
+        |> Url.SimpleParser.s "flags"
+        |> Url.SimpleParser.allQueryFlags
+
+
 
 -- CODEC EXAMPLE
 
@@ -238,6 +247,7 @@ type CRoute
     | CUser String { full : Bool }
     | CComment String Int { fragment : Maybe String }
     | CSearch (List Int)
+    | CFlags (List String)
 
 
 
@@ -344,6 +354,80 @@ getSearchIds cRoute =
             []
 
 
+getFlags : CRoute -> List String
+getFlags cRoute =
+    case cRoute of
+        CFlags flags ->
+            flags
+
+        _ ->
+            []
+
+
+
+-- PREDICATES
+
+
+isCTopic : CRoute -> Bool
+isCTopic cRoute =
+    case cRoute of
+        CTopic _ ->
+            True
+
+        _ ->
+            False
+
+
+isCBlog : CRoute -> Bool
+isCBlog cRoute =
+    case cRoute of
+        CBlog _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isCUser : CRoute -> Bool
+isCUser cRoute =
+    case cRoute of
+        CUser _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isCComment : CRoute -> Bool
+isCComment cRoute =
+    case cRoute of
+        CComment _ _ _ ->
+            True
+
+        _ ->
+            False
+
+
+isCSearch : CRoute -> Bool
+isCSearch cRoute =
+    case cRoute of
+        CSearch _ ->
+            True
+
+        _ ->
+            False
+
+
+isCFlags : CRoute -> Bool
+isCFlags cRoute =
+    case cRoute of
+        CFlags _ ->
+            True
+
+        _ ->
+            False
+
+
 
 -- CODECS
 
@@ -355,19 +439,20 @@ allCodecs =
     , userCodec
     , commentCodec
     , searchCodec
+    , flagsCodec
     ]
 
 
 topicCodec : Codec CRoute
 topicCodec =
-    Url.Codec.succeed CTopic
+    Url.Codec.succeed CTopic isCTopic
         |> Url.Codec.s "topic"
         |> Url.Codec.string getTopicSlug
 
 
 blogCodec : Codec CRoute
 blogCodec =
-    Url.Codec.succeed (\id page tags -> CBlog id { page = page, tags = tags })
+    Url.Codec.succeed (\id page tags -> CBlog id { page = page, tags = tags }) isCBlog
         |> Url.Codec.s "blog"
         |> Url.Codec.int getBlogPostId
         |> Url.Codec.queryInt "page" getBlogPage
@@ -376,7 +461,7 @@ blogCodec =
 
 userCodec : Codec CRoute
 userCodec =
-    Url.Codec.succeed (\name full -> CUser name { full = full })
+    Url.Codec.succeed (\name full -> CUser name { full = full }) isCUser
         |> Url.Codec.s "user"
         |> Url.Codec.string getUserName
         |> Url.Codec.queryFlag "full" getUserQueryFlag
@@ -384,7 +469,7 @@ userCodec =
 
 commentCodec : Codec CRoute
 commentCodec =
-    Url.Codec.succeed (\topic page fragment -> CComment topic page { fragment = fragment })
+    Url.Codec.succeed (\topic page fragment -> CComment topic page { fragment = fragment }) isCComment
         |> Url.Codec.s "topic"
         |> Url.Codec.string getCommentTopicSlug
         |> Url.Codec.s "comment"
@@ -394,9 +479,16 @@ commentCodec =
 
 searchCodec : Codec CRoute
 searchCodec =
-    Url.Codec.succeed CSearch
+    Url.Codec.succeed CSearch isCSearch
         |> Url.Codec.s "search"
         |> Url.Codec.queryInts "id" getSearchIds
+
+
+flagsCodec : Codec CRoute
+flagsCodec =
+    Url.Codec.succeed CFlags isCFlags
+        |> Url.Codec.s "flags"
+        |> Url.Codec.allQueryFlags getFlags
 
 
 cErrorToPError : Url.Codec.ParseError -> Url.SimpleParser.ParseError
@@ -441,3 +533,6 @@ cRouteToPRoute cRoute =
 
         CSearch i ->
             PSearch i
+
+        CFlags f ->
+            PFlags f

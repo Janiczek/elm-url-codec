@@ -65,6 +65,14 @@ cases =
     , ( "search", Ok (PSearch []) )
     , ( "search?id=1", Ok (PSearch [ 1 ]) )
     , ( "search?id=1&id=2", Ok (PSearch [ 1, 2 ]) )
+    , ( "search?id=1&id=hello"
+      , Err
+            (NotAllQueryParameterValuesWereInts
+                { got = [ "1", "hello" ]
+                , key = "id"
+                }
+            )
+      )
     , ( "search?id="
       , Err
             (NotAllQueryParameterValuesWereInts
@@ -73,10 +81,13 @@ cases =
                 }
             )
       )
+    , ( "flags", Ok (PFlags []) )
+    , ( "flags?x", Ok (PFlags [ "x" ]) )
+    , ( "flags?x&y", Ok (PFlags [ "x", "y" ]) )
     , ( "something-else"
       , Err
             (SegmentMismatch
-                { expected = "search"
+                { expected = "flags"
                 , available = "something-else"
                 }
             )

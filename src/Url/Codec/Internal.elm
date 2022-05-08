@@ -151,35 +151,36 @@ pathToInput path =
                 |> firstSplitBy "#"
 
         ( flags, params ) =
-            path
-                |> String.split "?"
-                |> List.reverse
-                |> List.head
-                |> Maybe.map (String.split "&")
-                |> Maybe.withDefault []
-                |> List.foldl
-                    (\pair ( accFlags, accParams ) ->
-                        case String.split "=" pair of
-                            -- "x"
-                            [ flag ] ->
-                                ( percentDecode flag :: accFlags
-                                , accParams
-                                )
+            case String.split "?" path of
+                _ :: search :: _ ->
+                    search
+                        |> String.split "&"
+                        |> List.foldl
+                            (\pair ( accFlags, accParams ) ->
+                                case String.split "=" pair of
+                                    -- "x"
+                                    [ flag ] ->
+                                        ( percentDecode flag :: accFlags
+                                        , accParams
+                                        )
 
-                            -- "x="
-                            -- "x=1"
-                            [ key, value ] ->
-                                ( accFlags
-                                , ( percentDecode key
-                                  , percentDecode value
-                                  )
-                                    :: accParams
-                                )
+                                    -- "x="
+                                    -- "x=1"
+                                    [ key, value ] ->
+                                        ( accFlags
+                                        , ( percentDecode key
+                                          , percentDecode value
+                                          )
+                                            :: accParams
+                                        )
 
-                            _ ->
-                                -- [] never happens, "x=y=z" etc. is outside spec
-                                ( accFlags, accParams )
-                    )
+                                    _ ->
+                                        -- [] never happens, "x=y=z" etc. is outside spec
+                                        ( accFlags, accParams )
+                            )
+                            ( [], [] )
+
+                _ ->
                     ( [], [] )
     in
     { segments = pathToSegments pathOnly
@@ -335,8 +336,6 @@ int innerParser =
                 )
 
 
-{-| TODO somewhere mention that this will fail if there is more than one item
--}
 queryInt : String -> Parser (Maybe Int -> a) -> Parser a
 queryInt key innerParser =
     \input ->
@@ -364,8 +363,6 @@ queryInt key innerParser =
                 )
 
 
-{-| TODO somewhere mention that this will fail if there is more than one item
--}
 queryString : String -> Parser (Maybe String -> a) -> Parser a
 queryString key innerParser =
     \input ->
@@ -393,8 +390,6 @@ queryString key innerParser =
                 )
 
 
-{-| TODO somewhere note that this will fail if values are found that aren't int-strings
--}
 queryInts : String -> Parser (List Int -> a) -> Parser a
 queryInts key innerParser =
     \input ->

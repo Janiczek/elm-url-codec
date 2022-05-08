@@ -188,6 +188,7 @@ type CodecInProgress target parseResult
         , toQueryParams : List (target -> Maybe ( String, List String ))
         , toQueryFlags : List (target -> List String)
         , toFragment : Maybe (target -> Maybe String)
+        , isThing : target -> Bool
         }
 
 
@@ -255,59 +256,63 @@ different route, such that the getters will return Nothing).
 -}
 toStringSingle : Codec target -> target -> Maybe String
 toStringSingle (C codec) thing =
-    codec.toSegments
-        |> Internal.listTraverse (\fn -> fn thing)
-        |> Maybe.map
-            (\pathParts ->
-                let
-                    params : List String
-                    params =
-                        codec.toQueryParams
-                            |> List.filterMap (\fn -> fn thing)
-                            |> List.reverse
-                            |> List.concatMap
-                                (\( key, values ) ->
-                                    let
-                                        pctKey : String
-                                        pctKey =
-                                            Url.percentEncode key
-                                    in
-                                    values
-                                        |> List.map
-                                            (\value ->
-                                                pctKey
-                                                    ++ "="
-                                                    ++ Url.percentEncode value
-                                            )
-                                )
+    if codec.isThing thing then
+        codec.toSegments
+            |> Internal.listTraverse (\fn -> fn thing)
+            |> Maybe.map
+                (\pathParts ->
+                    let
+                        params : List String
+                        params =
+                            codec.toQueryParams
+                                |> List.filterMap (\fn -> fn thing)
+                                |> List.reverse
+                                |> List.concatMap
+                                    (\( key, values ) ->
+                                        let
+                                            pctKey : String
+                                            pctKey =
+                                                Url.percentEncode key
+                                        in
+                                        values
+                                            |> List.map
+                                                (\value ->
+                                                    pctKey
+                                                        ++ "="
+                                                        ++ Url.percentEncode value
+                                                )
+                                    )
 
-                    flags : List String
-                    flags =
-                        codec.toQueryFlags
-                            |> List.concatMap (\fn -> fn thing)
-                            |> List.map Url.percentEncode
+                        flags : List String
+                        flags =
+                            codec.toQueryFlags
+                                |> List.concatMap (\fn -> fn thing)
+                                |> List.map Url.percentEncode
 
-                    allQueries : List String
-                    allQueries =
-                        params ++ flags
-                in
-                Internal.constructPath
-                    { path =
-                        pathParts
-                            |> List.map Url.percentEncode
-                            |> String.join "/"
-                    , query =
-                        if List.isEmpty allQueries then
-                            Nothing
+                        allQueries : List String
+                        allQueries =
+                            params ++ flags
+                    in
+                    Internal.constructPath
+                        { path =
+                            pathParts
+                                |> List.map Url.percentEncode
+                                |> String.join "/"
+                        , query =
+                            if List.isEmpty allQueries then
+                                Nothing
 
-                        else
-                            Just (String.join "&" (params ++ flags))
-                    , fragment =
-                        codec.toFragment
-                            |> Maybe.andThen (\fn -> fn thing)
-                            |> Maybe.map Url.percentEncode
-                    }
-            )
+                            else
+                                Just (String.join "&" (params ++ flags))
+                        , fragment =
+                            codec.toFragment
+                                |> Maybe.andThen (\fn -> fn thing)
+                                |> Maybe.map Url.percentEncode
+                        }
+                )
+
+    else
+        Nothing
 
 
 {-| Convert the given value into an URL string, trying out multiple codecs if
@@ -349,6 +354,8 @@ toString codecs thing =
 
 {-| A way to start your Codec definition.
 
+TODO isThing
+
     unfinishedCodec : CodecInProgress Route (String -> Route)
     unfinishedCodec =
         -- needs a string provided via Url.Codec.string
@@ -367,14 +374,15 @@ Can also work standalone for URLs without path segments:
     --> Just ""
 
 -}
-succeed : parseResult -> CodecInProgress target parseResult
-succeed thing =
+succeed : parseResult -> (target -> Bool) -> CodecInProgress target parseResult
+succeed thing isThing =
     C
         { parser = Internal.succeed thing
         , toSegments = []
         , toQueryParams = []
         , toQueryFlags = []
         , toFragment = Nothing
+        , isThing = isThing
         }
 
 
@@ -403,6 +411,7 @@ s expected (C inner) =
         , toQueryParams = inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -444,6 +453,7 @@ string getter (C inner) =
         , toQueryParams = inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -485,6 +495,7 @@ int getter (C inner) =
         , toQueryParams = inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -545,6 +556,7 @@ queryInt key getter (C inner) =
                 :: inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -594,6 +606,7 @@ queryString key getter (C inner) =
                 :: inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -626,8 +639,24 @@ queryString key getter (C inner) =
     Url.Codec.parsePath [codec] "users"
     --> Ok (UserListingRoute [])
 
+    Url.Codec.toString [codec] (UserListingRoute [])
+    --> Just "user"
+
+    Url.Codec.toString [codec] (UserListingRoute [1])
+    --> Just "user?id=1"
+
+    Url.Codec.toString [codec] (UserListingRoute [1,2])
+    --> Just "user?id=1&id=2"
+
+Will fail if given a query parameter with an empty value:
+
     Url.Codec.parsePath [codec] "users?id="
-    --> Ok (UserListingRoute [1]) TODO TODO TODO TODO finish the error cases and toString
+    --> Err (NotAllQueryParameterValuesWereInts { got = [ "" ] , key = "id" })
+
+Will fail if any of the query parameters has a non-integer value:
+
+    Url.Codec.parsePath [codec] "users?id=1&id=hello"
+    --> Err (NotAllQueryParameterValuesWereInts { got = [ "1", "hello" ] , key = "id" })
 
 -}
 queryInts :
@@ -644,10 +673,53 @@ queryInts key getter (C inner) =
                 :: inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
-{-| TODO
+{-| A repeated string query parameter.
+
+    type Route
+        = UserListingRoute (List String)
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed UserListingRoute
+            |> Url.Codec.s "users"
+            |> Url.Codec.queryInts "tags" getUserListingRouteTags
+
+    getUserListingRouteTags : Route -> List String
+    getUserListingRouteTags route =
+        case route of
+            UserListingRoute tags ->
+                tags
+
+            _ ->
+                []
+
+    Url.Codec.parsePath [codec] "users?tags=Foo"
+    --> Ok (UserListingRoute ["Foo"])
+
+    Url.Codec.parsePath [codec] "users?tags=Foo&tags=Bar&tags=999"
+    --> Ok (UserListingRoute ["Foo", "Bar", "999"])
+
+    Url.Codec.parsePath [codec] "users"
+    --> Ok (UserListingRoute [])
+
+    Url.Codec.toString [codec] (UserListingRoute [])
+    --> Just "user"
+
+    Url.Codec.toString [codec] (UserListingRoute ["hello"])
+    --> Just "user?tags=hello
+
+    Url.Codec.toString [codec] (UserListingRoute ["hello", "111"])
+    --> Just "user?tags=hello&tags=111"
+
+Will succeed with an empty string if given a query parameter with an empty value:
+
+    Url.Codec.parsePath [codec] "users?tags="
+    --> Ok (UserListingRoute [""])
+
 -}
 queryStrings :
     String
@@ -663,6 +735,7 @@ queryStrings key getter (C inner) =
                 :: inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -688,6 +761,7 @@ queryFlag flag getter (C inner) =
             )
                 :: inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -704,6 +778,7 @@ allQueryFlags getter (C inner) =
         , toQueryParams = inner.toQueryParams
         , toQueryFlags = getter :: inner.toQueryFlags
         , toFragment = inner.toFragment
+        , isThing = inner.isThing
         }
 
 
@@ -720,4 +795,5 @@ fragment getter (C inner) =
         , toQueryParams = inner.toQueryParams
         , toQueryFlags = inner.toQueryFlags
         , toFragment = Just getter
+        , isThing = inner.isThing
         }

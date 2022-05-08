@@ -2,6 +2,7 @@ module CodecTests exposing (suite)
 
 import Expect
 import Fuzz exposing (Fuzzer)
+import Set
 import Test exposing (Test)
 import TestUtils as Utils exposing (CRoute(..))
 import Url.Codec
@@ -35,6 +36,9 @@ toStringCases =
     , ( CSearch [], "search" )
     , ( CSearch [ 1 ], "search?id=1" )
     , ( CSearch [ 1, 2 ], "search?id=1&id=2" )
+    , ( CFlags [], "flags" )
+    , ( CFlags [ "x" ], "flags?x" )
+    , ( CFlags [ "x", "y" ], "flags?x&y" )
 
     -- percent-encoded strings:
     , ( CTopic "H&M", "topic/H%26M" )
@@ -58,6 +62,11 @@ cRouteFuzzer =
             Utils.nonemptyStringFuzzer
             Fuzz.int
             (Fuzz.maybe Utils.nonemptyStringFuzzer)
+        , Fuzz.map CSearch (Fuzz.list Fuzz.int)
+        , Fuzz.map CFlags
+            (Fuzz.list Utils.nonemptyStringFuzzer
+                |> Fuzz.map (Set.fromList >> Set.toList)
+            )
         ]
 
 
