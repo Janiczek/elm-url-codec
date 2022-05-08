@@ -16,7 +16,8 @@ package.
 **Allows you to define both the URL parser and the URL builder at the same time.**
 
 Note that if you only need an URL parser, the [`Url.SimpleParser`](Url-SimpleParser)
-module will be nicer to use while providing the same functionality.
+module will be nicer to use (require less boilerplate) while providing the same
+functionality.
 
 @docs Codec, CodecInProgress
 
@@ -132,30 +133,41 @@ You'll typically start with something like
         = CommentPage String Int
         | PostPage String
 
+    isComment : Route -> Bool
+    isComment route =
+        case route of
+            CommentPage _ _ ->
+                True
+
+            _ ->
+                False
+
     myCodec =
-        Url.Codec.succeed CommentPage
+        Url.Codec.succeed CommentPage isComment
 
 At this point, the codec is of type:
 
-    myCodec : CodecInProgress a (String -> Int -> Route)
-
-_(After the first usage of [`int`](#int) or [`string`](#string) this will become
-more precise: the `a` will become a `Route`.)_
+    myCodec : CodecInProgress Route (String -> Int -> Route)
 
 Your goal here is to provide both arguments to `CommentPage`: the `String` and
-the `Int`. Do that with the [`int`](#int) / [`string`](#string) functions. You
-can also use the [`s`](#s) (as in "segment") function to provide hardcoded
+the `Int`. Do that with the various combinators ([`int`](#int),
+[`string`](#string), [`fragment`](#fragment) and all the `*query*` functions).
+
+You can also use the [`s`](#s) (as in "segment") function to provide hardcoded
 segments in the URL path:
 
     myCodec =
-        Url.Codec.succeed CommentPage
+        Url.Codec.succeed CommentPage isComment
             |> Url.Codec.s "post"
             |> Url.Codec.string getCommentPageSlug
             |> Url.Codec.s "page"
             |> Url.Codec.int getCommentPageNumber
 
-Now that we've used both [`string`](#string) and [`int`](#int), this codec will
-be able to both parse and build URLs:
+Now that we've used both [`string`](#string) and [`int`](#int), the second part
+of the type signature has changed from `String -> Int -> Route` to `Route`,
+meaning both parts are the same (`CodecInProgress Route Route`, also expressible
+as `Codec Route`) and the codec is ready to use! It will now be able to both
+parse and build URLs:
 
     Url.Codec.parsePath [myCodec] "/post/hello-world/page/1"
     --> Ok (CommentPage "hello-world" 1)
@@ -163,8 +175,9 @@ be able to both parse and build URLs:
     Url.Codec.toString [myCodec] (CommentPage "you-too" 222)
     --> Just "post/you-too/page/222"
 
-Note that the [`int`](#int) and [`string`](#string) functions need you to provide
-a getter. Here is a typical implementation of one:
+Note that the functions that provide you with data will need you to provide
+a getter, used by the `toString` function to get the data from your `Route` type.
+Here is a typical implementation of one:
 
     getCommentPageSlug : Route -> Maybe String
     getCommentPageSlug route =
@@ -245,15 +258,6 @@ parseUrl codecs url =
 -- URL BUILDING
 
 
-{-| Convert the given value into an URL string.
-
-Can fail (eg. if you use a codec for one route with a string belonging to a
-different route, such that the getters will return Nothing).
-
-    Url.Codec.toString [helloCodec] (HelloPage 123)
-    --> Just "hello/123"
-
--}
 toStringSingle : Codec target -> target -> Maybe String
 toStringSingle (C codec) thing =
     if codec.isThing thing then
@@ -321,7 +325,8 @@ necessary.
 Will stop at the first success.
 
 Can fail (eg. if you use a codec for one route with a string belonging to a
-different route, such that the used path segment getters will return Nothing).
+different route, such that the predicate given to `success` will return `False`
+or the getters return `Nothing`).
 
     allCodecs =
         [ helloCodec, postCodec ]
@@ -331,6 +336,9 @@ different route, such that the used path segment getters will return Nothing).
 
     Url.Codec.toString allCodecs (PostPage "goto-bad")
     --> Just "post/goto-bad"
+
+    Url.Codec.toString [nonHelloPageCodec] (HelloPage 123)
+    --> Nothing
 
 -}
 toString : List (Codec target) -> target -> Maybe String
@@ -354,18 +362,33 @@ toString codecs thing =
 
 {-| A way to start your Codec definition.
 
-TODO isThing
-
     unfinishedCodec : CodecInProgress Route (String -> Route)
     unfinishedCodec =
         -- needs a string provided via Url.Codec.string
-        Url.Codec.succeed UserRoute
+        Url.Codec.succeed UserRoute isUserRoute
+
+    isUserRoute : Route -> Bool
+    isUserRoute route =
+        case route of
+            UserRoute _ ->
+                True
+
+            _ ->
+                False
+
+You'll then need to continue with some other combinators to provide the data to
+your route constructor.
 
 Can also work standalone for URLs without path segments:
 
+    -- same as CodecInProgress Route Route
     codec : Codec Route
     codec =
-        Url.Codec.succeed HomeRoute
+        Url.Codec.succeed HomeRoute isHomeRoute
+
+    isHomeRoute : Route -> Bool
+    isHomeRoute route =
+        route == HomeRoute
 
     Url.Codec.parsePath [codec] ""
     --> Ok HomeRoute
@@ -393,8 +416,12 @@ succeed thing isThing =
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed HomeRoute
+        Url.Codec.succeed HomeRoute isHomeRoute
             |> Url.Codec.s "home"
+
+    isHomeRoute : Route -> Bool
+    isHomeRoute route =
+        route == HomeRoute
 
     Url.Codec.parsePath [codec] "home"
     --> Ok HomeRoute
@@ -419,12 +446,22 @@ s expected (C inner) =
 
     type Route
         = PostRoute String
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed PostRoute
+        Url.Codec.succeed PostRoute isPostRoute
             |> Url.Codec.s "post"
             |> Url.Codec.string getPostRouteSlug
+
+    isPostRoute : Route -> Bool
+    isPostRoute route =
+        case route of
+            PostRoute _ ->
+                True
+
+            _ ->
+                False
 
     getPostRouteSlug : Route -> Maybe String
     getPostRouteSlug route =
@@ -461,12 +498,22 @@ string getter (C inner) =
 
     type Route
         = UserRoute Int
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed UserRoute
+        Url.Codec.succeed UserRoute isUserRoute
             |> Url.Codec.s "user"
             |> Url.Codec.int getUserRouteId
+
+    isUserRoute : Route -> Bool
+    isUserRoute route =
+        case route of
+            UserRoute _ ->
+                True
+
+            _ ->
+                False
 
     getUserRouteId : Route -> Maybe Int
     getUserRouteId route =
@@ -503,12 +550,22 @@ int getter (C inner) =
 
     type Route
         = UserRoute (Maybe Int)
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed UserRoute
+        Url.Codec.succeed UserRoute isUserRoute
             |> Url.Codec.s "user"
             |> Url.Codec.queryInt "id" getUserRouteId
+
+    isUserRoute : Route -> Bool
+    isUserRoute route =
+        case route of
+            UserRoute _ ->
+                True
+
+            _ ->
+                False
 
     getUserRouteId : Route -> Maybe Int
     getUserRouteId route =
@@ -564,12 +621,22 @@ queryInt key getter (C inner) =
 
     type Route
         = UserRoute (Maybe String)
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed UserRoute
+        Url.Codec.succeed UserRoute isUserRoute
             |> Url.Codec.s "user"
             |> Url.Codec.queryString "name" getUserRouteName
+
+    isUserRoute : Route -> Bool
+    isUserRoute route =
+        case route of
+            UserRoute _ ->
+                True
+
+            _ ->
+                False
 
     getUserRouteName : Route -> Maybe String
     getUserRouteName route =
@@ -614,12 +681,22 @@ queryString key getter (C inner) =
 
     type Route
         = UserListingRoute (List Int)
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed UserListingRoute
+        Url.Codec.succeed UserListingRoute isUserListingRoute
             |> Url.Codec.s "users"
             |> Url.Codec.queryInts "id" getUserListingRouteIds
+
+    isUserListingRoute : Route -> Bool
+    isUserListingRoute route =
+        case route of
+            UserListingRoute _ ->
+                True
+
+            _ ->
+                False
 
     getUserListingRouteIds : Route -> List Int
     getUserListingRouteIds route =
@@ -681,12 +758,22 @@ queryInts key getter (C inner) =
 
     type Route
         = UserListingRoute (List String)
+        | ...
 
     codec : Codec Route
     codec =
-        Url.Codec.succeed UserListingRoute
+        Url.Codec.succeed UserListingRoute isUserListingRoute
             |> Url.Codec.s "users"
             |> Url.Codec.queryInts "tags" getUserListingRouteTags
+
+    isUserListingRoute : Route -> Bool
+    isUserListingRoute route =
+        case route of
+            UserListingRoute _ ->
+                True
+
+            _ ->
+                False
 
     getUserListingRouteTags : Route -> List String
     getUserListingRouteTags route =
@@ -739,7 +826,48 @@ queryStrings key getter (C inner) =
         }
 
 
-{-| TODO
+{-| A query flag (parameter without `=` and a value), like eg. `/settings?admin`.
+
+    type Route
+        = SettingsRoute { admin : Bool }
+        | ...
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed (\admin -> SettingsRoute { admin = admin }) isSettingsRoute
+            |> Url.Codec.s "settings"
+            |> Url.Codec.queryFlag "admin" getSettingsAdminFlag
+
+    isSettingsRoute : Route -> Bool
+    isSettingsRoute route =
+        case route of
+            SettingsRoute _ ->
+                True
+
+            _ ->
+                False
+
+    getSettingsAdminFlag : Route -> Bool
+    getSettingsAdminFlag route =
+        case route of
+            SettingsRoute {admin} ->
+                admin
+
+            _ ->
+                False
+
+    Url.Codec.parsePath [codec] "settings?admin"
+    --> Ok (SettingsRoute { admin = True })
+
+    Url.Codec.parsePath [codec] "settings"
+    --> Ok (SettingsRoute { admin = False })
+
+    Url.Codec.toString [codec] (SettingsRoute { admin = False })
+    --> Just "settings"
+
+    Url.Codec.toString [codec] (SettingsRoute { admin = True })
+    --> Just "settings?admin"
+
 -}
 queryFlag :
     String
@@ -765,7 +893,54 @@ queryFlag flag getter (C inner) =
         }
 
 
-{-| TODO
+{-| All query flags, like eg. `/settings?admin&no-exports`.
+
+    type Route
+        = SettingsRoute (List String)
+        | ...
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed SettingsRoute isSettingsRoute
+            |> Url.Codec.s "settings"
+            |> Url.Codec.allQueryFlags getSettingsFlags
+
+    isSettingsRoute : Route -> Bool
+    isSettingsRoute route =
+        case route of
+            SettingsRoute _ ->
+                True
+
+            _ ->
+                False
+
+    getSettingsFlags : Route -> List String
+    getSettingsFlags route =
+        case route of
+            SettingsRoute flags ->
+                flags
+
+            _ ->
+                []
+
+    Url.Codec.parsePath [codec] "settings?admin"
+    --> Ok (SettingsRoute ["admin"])
+
+    Url.Codec.parsePath [codec] "settings"
+    --> Ok (SettingsRoute [])
+
+    Url.Codec.parsePath [codec] "settings?admin&no-exports"
+    --> Ok (SettingsRoute ["admin", "no-exports"])
+
+    Url.Codec.toString [codec] (SettingsRoute [])
+    --> Just "settings"
+
+    Url.Codec.toString [codec] (SettingsRoute ["foo"])
+    --> Just "settings?foo"
+
+    Url.Codec.toString [codec] (SettingsRoute ["foo", "bar"])
+    --> Just "settings?foo&bar"
+
 -}
 allQueryFlags :
     (target -> List String)
@@ -782,7 +957,54 @@ allQueryFlags getter (C inner) =
         }
 
 
-{-| TODO
+{-| Fragment part of the URL, eg. `/settings#HelloThereWorld`.
+
+    type Route
+        = SettingsRoute (Maybe String)
+        | ...
+
+    codec : Codec Route
+    codec =
+        Url.Codec.succeed SettingsRoute isSettingsRoute
+            |> Url.Codec.s "settings"
+            |> Url.Codec.fragment getSettingsFragment
+
+    isSettingsRoute : Route -> Bool
+    isSettingsRoute route =
+        case route of
+            SettingsRoute _ ->
+                True
+
+            _ ->
+                False
+
+    getSettingsFragment : Route -> Maybe String
+    getSettingsFragment route =
+        case route of
+            SettingsRoute fragment ->
+                fragment
+
+            _ ->
+                []
+
+    Url.Codec.parsePath [codec] "settings#abc"
+    --> Ok (SettingsRoute (Just "abc"))
+
+    Url.Codec.parsePath [codec] "settings"
+    --> Ok (SettingsRoute Nothing)
+
+    Url.Codec.parsePath [codec] "settings#"
+    --> Ok (SettingsRoute (Just ""))
+
+    Url.Codec.toString [codec] (SettingsRoute (Just "abc"))
+    --> Just "settings#abc"
+
+    Url.Codec.toString [codec] (SettingsRoute Nothing)
+    --> Just "settings"
+
+    Url.Codec.toString [codec] (SettingsRoute (Just ""))
+    --> Just "settings#"
+
 -}
 fragment :
     (target -> Maybe String)

@@ -62,6 +62,7 @@ cases =
     , ( "topic/hello/comment/hello", Err (WasNotInt "hello") )
     , ( "topic/hello/comment/123", Ok (PComment "hello" 123 { fragment = Nothing }) )
     , ( "topic/hello/comment/123#ohai", Ok (PComment "hello" 123 { fragment = Just "ohai" }) )
+    , ( "topic/hello/comment/123#", Ok (PComment "hello" 123 { fragment = Just "" }) )
     , ( "search", Ok (PSearch []) )
     , ( "search?id=1", Ok (PSearch [ 1 ]) )
     , ( "search?id=1&id=2", Ok (PSearch [ 1, 2 ]) )
