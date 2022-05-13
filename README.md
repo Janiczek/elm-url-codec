@@ -56,7 +56,7 @@ getTopicSlug route =
 
 --     needed for Url.Codec
 -- not needed for Url.SimpleParser
-isTopicRoute : Route -> Maybe String
+isTopicRoute : Route -> Bool
 isTopicRoute route =
     case route of
         Topic _ ->
