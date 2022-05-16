@@ -117,19 +117,19 @@ Will prefer to report error from the parser that had most success parsing.
     allParsers =
         [ helloParser, homeParser ]
 
-    Url.SimpleParser.parse allParsers "hello/123"
+    Url.SimpleParser.parsePath allParsers "hello/123"
     --> Ok (HelloPage 123)
 
-    Url.SimpleParser.parse allParsers "/hello/123?comments=1"
+    Url.SimpleParser.parsePath allParsers "/hello/123?comments=1"
     --> Ok (HelloPage 123)
 
-    Url.SimpleParser.parse allParsers "hello/123whoops"
+    Url.SimpleParser.parsePath allParsers "hello/123whoops"
     --> Err (WasNotInt "123whoops")
 
-    Url.SimpleParser.parse allParsers ""
+    Url.SimpleParser.parsePath allParsers ""
     --> Ok HomePage
 
-    Url.SimpleParser.parse [] ""
+    Url.SimpleParser.parsePath [] ""
     --> Err NoParsers
 
 -}
