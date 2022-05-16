@@ -63,6 +63,7 @@ Create it with the combinators:
   - [`succeed`](#succeed), [`s`](#s), [`int`](#int), [`string`](#string)
   - [`queryInt`](#queryInt), [`queryString`](#queryString), [`queryInts`](#queryInts), [`queryStrings`](#queryStrings),
   - [`queryFlag`](#queryFlag), [`allQueryFlags`](#allQueryFlags)
+  - [`fragment`](#fragment)
 
 Use it to **parse** URLs with the functions [`parsePath`](#parsePath) and [`parseUrl`](#parseUrl).
 
